@@ -11,10 +11,6 @@ import 'server_tool.dart';
 /// At most this many recipients in each of To, CC and BCC.
 const maxRecipientsPerField = 50;
 
-/// At most this many candidates are listed for a recipient that is not
-/// clear; the rest are counted.
-const _maxListedCandidates = 10;
-
 /// `send_message`: sends a new message (not a reply) to the users and groups
 /// named, found with the search of Smartschool's compose form.
 ///
@@ -315,13 +311,13 @@ Future<Map<_Field, List<Recipient>>> _lookUp(
           unclear.add(
             '- "${request.text}": Smartschool finds no user or group with '
             '${request.id == null ? 'exactly that name' : 'that name and id'}'
-            '${_candidates(results, 'It finds')}',
+            '${listCandidates(results, 'It finds')}',
           );
         case final matches:
           unclear.add(
             '- "${request.text}": Smartschool finds '
             '${countRecipients(matches)} with that name'
-            '${_candidates(matches, 'They are')}',
+            '${listCandidates(matches, 'They are')}',
           );
       }
     }
@@ -356,19 +352,4 @@ Future<Map<_Field, List<Recipient>>> _lookUp(
     }
   }
   return found;
-}
-
-/// [recipients] as lines under an unclear recipient, introduced by [intro],
-/// at most [_maxListedCandidates]; only the full stop when there are none.
-String _candidates(List<Recipient> recipients, String intro) {
-  if (recipients.isEmpty) return '.';
-  final listed = recipients.take(_maxListedCandidates);
-  final left = recipients.length - listed.length;
-  return [
-    '. $intro:',
-    for (final recipient in listed) '  - ${recipient.listing}',
-    if (left > 0)
-      '  - and $left more: look them up with search_recipients and a longer '
-          'part of the name.',
-  ].join('\n');
 }

@@ -3,7 +3,8 @@
 [Back to the overview](../../README.md)
 
 Smartschool's messages: the inbox, the sent box, the archive and the folders
-you made in Smartschool ("Map toevoegen"). For everyone, without a switch.
+you made in Smartschool ("Map toevoegen"), and your own groups of people to
+send messages to ("Mijn groepen"). For everyone, without a switch.
 Tools that change something follow the
 [shared rules](../../README.md#changes-and-approval).
 
@@ -20,6 +21,13 @@ Tools that change something follow the
 | [`reply_to_message`](#reply_to_message) | Sends a reply, optionally with files | Yes, asks approval |
 | [`search_recipients`](#search_recipients) | Finds the users and groups a new message can go to | No |
 | [`send_message`](#send_message) | Sends a new message, optionally with files | Yes, asks approval |
+| [`list_my_groups`](#list_my_groups) | Lists your own groups ("Mijn groepen"), as `send_message` takes them | No |
+| [`read_my_group`](#read_my_group) | Lists who is in one of your own groups | No |
+| [`create_my_group`](#create_my_group) | Makes an own group, with a name and a description | Yes, asks approval |
+| [`edit_my_group`](#edit_my_group) | Renames an own group or changes its description | Yes, asks approval |
+| [`delete_my_group`](#delete_my_group) | Deletes an own group with its member list | Yes, asks approval, cannot be undone |
+| [`add_my_group_members`](#add_my_group_members) | Adds people of your school to an own group | Yes, asks approval |
+| [`remove_my_group_members`](#remove_my_group_members) | Removes members from an own group | Yes, asks approval |
 
 ## Tools
 
@@ -106,6 +114,71 @@ never picks one. A person of another school of the school group can be a
 recipient too, once `search_recipients` found them. Asks for approval; Claude looks up every recipient and
 shows you the recipients, the subject, the text and every file with its size
 first. A message is [never sent twice](../../README.md#changes-and-approval).
+
+### `list_my_groups`
+
+Lists your own groups: the groups of people you keep in your Smartschool
+profile, under "Mijn groepen". A message to one goes to all its members.
+Each group is listed as `send_message` takes it, like `Projectwerk (group
+298)`, with its description after a `|`, so Claude can send a message to it
+straight away. Claude makes, renames and deletes a group, and adds and
+removes its members, with the tools below.
+
+### `read_my_group`
+
+Lists who is in one of your own groups, by its id from `list_my_groups`:
+each member by name (last name first, as Smartschool shows them) with their
+user id, and a person of another school of the school group with their
+school.
+
+### `create_my_group`
+
+Makes a new own group, with a name and optionally a description, for a
+project or a trip. It has no members yet. The result gives the group as
+`send_message` takes it. An empty name, or the name of another own group, is
+refused before anything is sent: two groups with one name cannot be told
+apart when you send a message. Asks for approval; Claude shows you the name
+and the description first.
+
+### `edit_my_group`
+
+Changes the name, the description or both of one of your own groups, by its
+id from `list_my_groups`. What Claude leaves out stays; an empty description
+removes it. The members stay. The same names are refused as for
+`create_my_group`. Asks for approval; Claude shows you the group by its
+current name and what changes first.
+
+### `delete_my_group`
+
+Deletes one of your own groups, by its id from `list_my_groups`, with its
+member list. **It cannot be undone**: an own group has no trash. Asks for
+approval, after Claude shows you the group by name with its number of
+members and says that it cannot be undone.
+
+### `add_my_group_members`
+
+Adds people to one of your own groups, by its id from `list_my_groups`: each
+person as `search_recipients` lists them, like `Sven Lamber (user 146)`, or a
+name that exactly one person has. The tool looks every person up again, as
+`send_message` does, and changes nothing when one does not name exactly one
+person: it then lists who Smartschool finds, for you to choose. Only people
+of your own school, by their own account: not a co-account (a parent's
+account), not a group or a class, and not a person of another school of the
+school group. Someone who is in the group already is reported, not added
+again. The result gives the number of members after the change. Asks for
+approval; Claude shows you the group and every person to add, with their
+class, first.
+
+### `remove_my_group_members`
+
+Removes members from one of your own groups, by its id from
+`list_my_groups`: each member as `read_my_group` lists them, like `Lamber
+Sven (user 146)`, or a name that exactly one member has (in either order).
+Nothing is removed when one does not name exactly one member: the result
+then lists the members. Someone who is not in the group is reported, not
+sent. The members are removed one by one; the result says who was removed
+and how many members the group has after. Asks for approval; Claude shows
+you the group and every member to remove first.
 
 ## How it works
 
@@ -274,6 +347,146 @@ and text; the result names them, and `read_message` lists them on the sent
 message. A file Smartschool's upload step refuses stops the send before the
 submit, with Smartschool's reason: nothing was sent.
 
+### How `list_my_groups` and `read_my_group` work
+
+They read "Mijn groepen" with the library's `MyGroupsService`
+(flutter_smartschool 0.4.6, yvanvds/dartschool#251). `list_my_groups` reads
+the list of own groups (`list()`), sorted by name as Smartschool lists them.
+The search of the compose form finds an own group by its name, as a group,
+with the group's id as its `(group <id>)` and its description after the `|`
+(seen live on 2026-11-16). So a line of `list_my_groups` names the group as
+`search_recipients` does, and `send_message` takes what comes before the
+`|`. `search_recipients` does not tell an own group from a group of the
+school; `list_my_groups` does, and `read_my_group` shows who is in it.
+
+`read_my_group` reads the list first, and refuses an id that is not one of
+the user's groups with the groups there are, before it reads any members.
+Then `members()`: the group's members page and, in that page's session, the
+selection Smartschool's member picker has for the group, which gives each
+member's platform and school. A group deleted in between is refused the same
+way. A member on another platform than the own school's is a person of
+another school of the school group, listed as `search_recipients` lists one:
+`Name (user 2231, platform 5810) | school: ...`. The own platform is that of
+the compose form (`getCurrentUserAsRecipient`, the platform the library
+compares with for `MessageSearchUser.otherSchool`), so for a group with
+members `read_my_group` loads a compose form and leaves it unused, as
+`search_recipients` does. When Smartschool does not open the compose form to
+the account, every member is listed as one of the own school. A member that
+is not a person (a class or a group added with the picker's tabs, not seen)
+is listed as such.
+
+An answer the library cannot use (`SmartschoolMyGroupsError`: another
+status, another page, a members page and a selection that do not list the
+same members) is an error that says to try again, and to look at the groups
+in Smartschool when it keeps happening; the library's message, which names
+a group by its id only, goes to the log. The picker answering with an HTML
+page is an unexpected problem, as for every tool. The members of a group are
+mostly pupils: the log names no group or member, only ids and error types.
+
+### How `create_my_group`, `edit_my_group` and `delete_my_group` work
+
+They write "Mijn groepen" with `MyGroupsService.create`, `update` and
+`delete` (flutter_smartschool 0.4.6, yvanvds/dartschool#252). Each reads the
+list of own groups first. `edit_my_group` and `delete_my_group` refuse an id
+that is not in it with the groups there are, as `read_my_group` does, and
+name the group by its current name in their result. A name is trimmed and
+refused when it is empty, or has no text outside its tags, before anything
+is sent; a name that another own group has (as the list shows it: without
+tags, trimmed) is refused once the list is read, naming that group. The
+library refuses the same names with an `ArgumentError`, naming the group by
+its id only; the server checks first, and turns the library's refusal into
+the same kind of error in case they ever differ. Smartschool saves a name
+and a description as plain text: it strips tags, and the result gives the
+group as the list shows it after the save.
+
+The library loads the form of the group for its token (`GET
+...&function=addedit`, with `&mID=` for an existing group), posts it once
+(never again after logging in again), follows Smartschool's redirect to the
+list and checks the group there: a new group with the name and description
+sent, or the group with them. `edit_my_group` sends what it leaves out as the
+group's edit form has it, so it stays. A delete is one `GET
+...&function=delete&mID=`, answered with the list without the group and the
+feedback that it was done. A group deleted elsewhere in between is refused
+with the groups there are, and nothing was changed or deleted.
+
+When Smartschool refuses the session for the save or the delete, it was not
+handled: the tool logs in again and runs once more from the list, so a
+group is made once. When the save or the delete went out but Smartschool's
+answer does not confirm it (`SmartschoolMyGroupSaveUnconfirmedError`: no
+answer, another status, or a list that does not show the change), the
+result says that the group may or may not have been made, changed or
+deleted, tells Claude not to call the tool again for it but to check with
+`list_my_groups` and tell the user. The log gets the status or the type of
+the failure, and the groups by id only.
+
+The three are marked destructive, so the client asks approval at every
+call, and not idempotent. A deleted group does not go to a trash: it is
+gone, with its member list.
+
+### How `add_my_group_members` and `remove_my_group_members` work
+
+They change the members of a group with `MyGroupsService.addMembers` and
+`removeMember` (flutter_smartschool 0.4.6, yvanvds/dartschool#253). Each
+reads the list of own groups first, and refuses an id that is not in it with
+the groups there are, as `read_my_group` does; then the group's members
+(`members()`). The library also offers `setMembers` and `clearMembers`,
+which replace or empty the whole list: one wrong call would empty a group of
+dozens of pupils, so no tool uses them (#233).
+
+`add_my_group_members` reads each entry as `send_message` reads a recipient
+(`RecipientRequest`): a reference that names a group, a co-account or a
+person of another school (a platform) is refused before anything is sent.
+Then it searches every name once, on one compose form, with the account's
+setting "Toon personen van andere scholen" (`searchRecipientsAll`, as
+`send_message`), and matches each entry with the people found by their own
+account (`userLT` 0), never a group. An entry that matches no one or several
+people stops the call with who the search finds (`listCandidates`, shared
+with `send_message`); so does a person of another school
+(`MessageSearchUser.otherSchool` true) or of a school Smartschool does not
+say (`null`): the library refuses both (`ArgumentError`), as adding them was
+not tried. A co-account has the pupil's user id and platform, and the
+library would add the pupil in its place (yvanvds/dartschool#256): the tool
+refuses it itself until that is settled (#234). A group with a member that
+is not a person (a class or a group added in Smartschool) is refused in
+plain words, as the library refuses to change it; so is a person with the
+user id of a member of another school, whom the members page cannot tell
+apart. Someone who is a member already is reported and left out; when no
+one is left, nothing is sent. The others go to `addMembers` at once: the
+library reads the members page and the picker's selection (for each
+member's platform), sends the picker the whole new selection (`confirm
+Selection`: the current members and the new ones, since the selection
+replaces the members) and posts the members form, each once, in the session
+of the members page, and checks that the members page Smartschool answers
+lists exactly the members sent. When Smartschool refuses the session for one
+of them, nothing was saved: the tool logs in again and runs once more from
+the list. The result gives the number of members after the change and who
+was added, as `search_recipients` lists them (with their class).
+
+`remove_my_group_members` reads each entry as a line of `read_my_group`
+(what follows a `|` is ignored) and finds it among the members: by its user
+id and name, or by a name alone that exactly one member has; a name matches
+in any order of its words, as `read_my_group` lists a member last name
+first and the compose search mostly first name first. An entry that names no
+member or several, a member's id with another name, or a group stops the
+call with the members, before anything is sent. An id that is not a member's
+is reported as not in the group. Smartschool removes one member per request
+(`POST /Profile/Mygroups/deleteUser`) and answers `true` whether or not
+anyone was removed, so the library reads the members page before and after
+each removal. The tool removes the members one by one, each in a session
+call of its own: a member the members page no longer lists is reported as
+not in the group, without sending a removal; where a removal fails, the
+members after it are not tried, and the result says who was removed, who
+was not (or may have been) and who was not tried.
+
+When a change or a removal went out but Smartschool did not confirm it
+(`SmartschoolMyGroupSaveUnconfirmedError`), the result says it may or may
+not have been made, tells Claude not to call the tool again for it but to
+read the members with `read_my_group`, and tell the user. The log gets the
+number of people and the group by its id, never a name.
+
+Both are marked destructive, so the client asks approval at every call, and
+not idempotent.
+
 ### Helpers and tests
 
 Message helpers for later tools live in `lib/src/messages/`: `MessageBox`
@@ -287,8 +500,14 @@ message text Claude writes (`markdownToHtml`, which escapes all HTML) in
 (`searchRecipients`, `RecipientRequest`) in `recipient_search.dart`, the
 filters and date-range arguments in `message_filter.dart`, the output lines
 in `message_format.dart`, full-text matching and snippets (`SearchQuery`) in
-`message_search.dart` and the message text cache (`MessageTextCache`) in
-`message_cache.dart`.
+`message_search.dart`, the message text cache (`MessageTextCache`) in
+`message_cache.dart`, and the user's own groups (`withMyGroups`, which turns
+the errors of `MyGroupsService` into tool errors, `findMyGroup` and the
+output lines; for the writes `withMyGroupWrite`, the name checks
+`myGroupNameArgument` and `checkMyGroupNameFree`, and
+`myGroupWriteNotConfirmed`; for the members the `people` and `members`
+arguments, `myGroupPeopleSchema` and `myGroupPeopleArgument`) in
+`my_groups.dart`.
 
 The tools that change messages named by id share their `message_ids`
 argument (`messageIdsSchema`, `messageIdsArgument`) and, for a change made
@@ -313,4 +532,21 @@ loaded in (an upload into it from another session fails the test), and
 whose submit sends the files of that directory with the message. Its folder
 tree (`requestmovelist`) holds the archive and the folders a test adds with
 `addFolder` (in the inbox, the sent box or another folder), each listed,
-read and changed as the archive is.
+read and changed as the archive is. Its search also finds the own groups of
+the fake "Mijn groepen" (`test/support/fake_my_groups.dart`), which serves
+the list of own groups, a group's members page and the member picker's
+selection in the shapes of the library's fixtures, and sets that selection
+per session when a members page is loaded, as Smartschool does. It also
+serves the form of a group with a new token per load, its save (tags
+stripped, `302` to the list, the feedback "not done" kept in the session for
+a save it refuses) and the delete (the list itself, with its feedback),
+and for the members the picker's `confirm Selection` (which replaces the
+session's selection, naming new people as the fake mailbox's directory
+does), the members form that saves it (answered with the members page) and
+the removal of one member (answered `true`); `dropping` handles a write and
+then drops the connection, `failing` answers a route with an error, and
+`writes` lists the writes that went out. The tests of `list_my_groups` and
+`read_my_group` (`test/my_groups_tools_test.dart`), of the writes of a
+group (`test/my_groups_write_tools_test.dart`) and of its members
+(`test/my_group_members_tools_test.dart`) use it with made-up groups and
+people, and check that the log names neither.

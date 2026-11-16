@@ -17,6 +17,12 @@
 /// so it needs no new login while the saved session is valid. Run it on its
 /// own with `--name list_messages`. Its failures show message text masked.
 ///
+/// The own groups test only reads as well: it lists the user's own groups
+/// ("Mijn groepen") and reads the members of the first one, with your own
+/// cookie cache. Run it on its own with `--name list_my_groups`. It prints
+/// counts only, never the name of a group or a member, and its failures
+/// show the text masked.
+///
 /// The search test only reads as well: it searches the inbox and the archive
 /// for a word of a read message, from that message's date on, twice (the
 /// second time from the message text cache,
@@ -236,6 +242,107 @@ void main() {
           .split('\n')
           .where((line) => line.contains('] Smartschool: '));
       stderr.writeln('--- messages: login steps ---\n${steps.join('\n')}');
+    },
+  );
+
+  test(
+    'list_my_groups and read_my_group work on the real account, read-only',
+    () async {
+      // The user's own cookie cache, so this reuses the saved session when
+      // it is still valid. It lists the own groups ("Mijn groepen") and
+      // reads the members of the first one: only reads. The names of groups
+      // and members are personal (the members are mostly pupils): it prints
+      // counts only, and failures show masked text.
+      final server = await ServerProcess.start(
+        exePath,
+        args: ['--credentials', credentialsPath],
+        environment: environmentWithoutSmartschool(),
+      );
+      await server.initialize();
+      Future<String> call(String tool, Map<String, Object?> arguments) async {
+        final (isError, text) = await server.callTool(
+          tool,
+          arguments: arguments,
+          timeout: const Duration(minutes: 2),
+        );
+        expect(isError, isNot(true), reason: '$tool: ${_mask(text)}');
+        return text;
+      }
+
+      // Every check is a yes or no with masked text as its reason: a
+      // matcher would print the actual text, with its names.
+      void check(bool ok, String what, String text) =>
+          expect(ok, isTrue, reason: '$what: ${_mask(text)}');
+
+      final list = await call('list_my_groups', {});
+      final groups = [
+        for (final match in RegExp(
+          r'^- .+ \(group (\d+)\)(?: \| .*)?$',
+          multiLine: true,
+        ).allMatches(list))
+          int.parse(match[1]!),
+      ];
+      final lines = list.split('\n');
+      if (groups.isEmpty) {
+        check(list.startsWith('You have no own groups'), 'no groups', list);
+      } else {
+        check(lines.length == groups.length + 1, 'a line per group', list);
+        check(
+          lines.first.startsWith(
+            'You have ${groups.length} own '
+            'group${groups.length == 1 ? '' : 's'} ("Mijn groepen")',
+          ),
+          'the count',
+          list,
+        );
+      }
+      final counts = ['${groups.length} groups'];
+
+      if (groups.isNotEmpty) {
+        final text = await call('read_my_group', {'group_id': groups.first});
+        final lines = text.split('\n');
+        check(
+          lines.length >= 2 &&
+              lines.first.startsWith('Own group ') &&
+              lines.first.contains('(group ${groups.first})'),
+          'the group',
+          text,
+        );
+        final members = [
+          for (final line in lines.skip(2))
+            if (RegExp(
+              r'^- .+ \((user \d+(, platform \d+)?|not a person: .+)\)'
+              r'( \| school: .+)?$',
+            ).hasMatch(line))
+              line,
+        ];
+        if (lines[1].startsWith('It has no members')) {
+          check(lines.length == 2, 'no members', text);
+        } else {
+          check(
+            lines[1] ==
+                    '${members.length} '
+                        'member${members.length == 1 ? '' : 's'}:' &&
+                lines.length == members.length + 2,
+            'a line per member',
+            text,
+          );
+        }
+        final otherSchool = members.where((m) => m.contains(', platform '));
+        counts.add(
+          '1 read: ${members.length} members, ${otherSchool.length} of '
+          'another school (names not shown)',
+        );
+      }
+
+      await server.stop();
+      final steps = (await server.stderr)
+          .split('\n')
+          .where((line) => line.contains('] Smartschool: '));
+      stderr.writeln(
+        '--- my groups: ${counts.join('; ')} ---\n'
+        '--- my groups: login steps ---\n${steps.join('\n')}',
+      );
     },
   );
 

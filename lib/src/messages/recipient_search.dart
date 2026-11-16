@@ -370,3 +370,25 @@ final class RecipientRequest {
 /// same name when this makes them equal.
 String normalName(String name) =>
     name.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+
+/// At most this many candidates are listed for a recipient that is not
+/// clear ([listCandidates]); the rest are counted.
+const maxListedCandidates = 10;
+
+/// [recipients] as lines under a recipient that is not clear, introduced by
+/// [intro] (like `It finds`), at most [maxListedCandidates]; only the full
+/// stop when there are none. Shared by `send_message` and
+/// `add_my_group_members`, which list who Smartschool finds for a name that
+/// does not name exactly one recipient.
+String listCandidates(List<Recipient> recipients, String intro) {
+  if (recipients.isEmpty) return '.';
+  final listed = recipients.take(maxListedCandidates);
+  final left = recipients.length - listed.length;
+  return [
+    '. $intro:',
+    for (final recipient in listed) '  - ${recipient.listing}',
+    if (left > 0)
+      '  - and $left more: look them up with search_recipients and a longer '
+          'part of the name.',
+  ].join('\n');
+}

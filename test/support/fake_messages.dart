@@ -324,6 +324,14 @@ class FakeMailbox {
   /// matches has not been checked live), users first, in this order.
   final List<FakeRecipient> directory = [];
 
+  /// The own mail groups of the account ("Mijn groepen", #231), which the
+  /// search also finds, as groups, after those of the [directory]:
+  /// `FakeSmartschool` sets it to those of its `FakeMyGroups`.
+  Iterable<FakeRecipient> Function() ownGroups = () => const [];
+
+  /// What the search finds from: the [directory], then the [ownGroups].
+  List<FakeRecipient> get _searchable => [...directory, ...ownGroups()];
+
   /// The names the reply form of a received message shows in To instead
   /// of its sender, by message id.
   final Map<int, List<String>> replyFormNames = {};
@@ -444,6 +452,17 @@ class FakeMailbox {
       _directoryUser(id)?.name ??
       _userIds.entries.firstWhere((entry) => entry.value == id).key;
 
+  /// The user of the [directory] whom the search gives the user id [id]
+  /// and the platform [platform], if any; gives no user an id.
+  FakeRecipient? searchedUser(int id, int platform) => directory
+      .where(
+        (r) =>
+            !r.isGroup &&
+            (r.id ?? _userIds[r.name]) == id &&
+            (r.platform ?? platformId) == platform,
+      )
+      .firstOrNull;
+
   /// The user of the [directory] with [id], when it was given one.
   FakeRecipient? _directoryUser(int id) =>
       directory.where((r) => !r.isGroup && r.id == id).firstOrNull;
@@ -461,7 +480,7 @@ class FakeMailbox {
     return namesakes.length > 1 ? '$name #$id' : name;
   }
 
-  FakeRecipient _group(int id) => directory.firstWhere(
+  FakeRecipient _group(int id) => _searchable.firstWhere(
     (r) => r.isGroup && r.id == id,
     orElse: () => throw UnsupportedError('fake mailbox: no group $id'),
   );
@@ -1004,9 +1023,10 @@ ${spans(bcc, '3')}
 </body></html>''';
   }
 
-  /// Searches the [directory] for the words of `val`, on the compose form
-  /// named by `uniqueUsc`, and answers like the live platform (the
-  /// dartschool fixtures `search-user.xml` and `search-group.xml`).
+  /// Searches the [directory] and the [ownGroups] for the words of `val`,
+  /// on the compose form named by `uniqueUsc`, and answers like the live
+  /// platform (the dartschool fixtures `search-user.xml` and
+  /// `search-group.xml`).
   ///
   /// Each user's `ssPlName` names their platform: for a person of another
   /// school always, and for one of the own school ([ownSchool]) only with
@@ -1033,7 +1053,7 @@ ${spans(bcc, '3')}
     final words = value.toLowerCase().split(RegExp(r'\s+'))
       ..removeWhere((word) => word.isEmpty);
     final found = [
-      for (final recipient in directory)
+      for (final recipient in _searchable)
         if (words.every(recipient.name.toLowerCase().contains) &&
             (otherSchools || recipient.school == null))
           recipient,

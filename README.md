@@ -33,7 +33,7 @@ offered only when the switch is on; every switch is off by default (see
 | Area | What it covers | Switch | Tools |
 | --- | --- | --- | --- |
 | [Status](docs/tools/status.md) | Whether the connection works, or what to fix | | 1 |
-| [Messages](docs/tools/messages.md) | Read, search, archive, mark, flag and trash messages; reply and send | | 11 |
+| [Messages](docs/tools/messages.md) | Read, search, archive, mark, flag and trash messages; reply and send, also to your own groups, which you make, rename, fill and delete | | 18 |
 | [Intradesk](docs/tools/intradesk.md) | Find, read and save files; add folders, weblinks and files; trash | | 8 |
 | [Planner](docs/tools/planner.md) | Read planners; plan lessons, tests, tasks and lesson clusters of year plans in your own | | 12 |
 | [Lesfiches](docs/tools/lesfiches.md) | Read, make, copy, change, label, trash, restore and plan your lesfiches, save lessons as lesfiches, and build year plans from them | | 26 |
@@ -65,9 +65,10 @@ Many tools only read. Those that change Smartschool share these rules:
 - **A trash, not a deletion.** Messages, Intradesk items, lesfiches,
   assignments and planned lesson clusters are moved to a trash in
   Smartschool, where you restore them in Smartschool itself (lesfiches also
-  with `restore_lesfiches`). No tool empties a trash. The one exception is `delete_year_plan`: a year plan of
-  Lesfiches has no trash, so it is deleted, and its description says so;
-  the lesfiches in it stay.
+  with `restore_lesfiches`). No tool empties a trash. The exceptions are
+  `delete_year_plan` and `delete_my_group`: a year plan of Lesfiches and an
+  own group of "Mijn groepen" have no trash, so they are deleted, and their
+  descriptions say so; the lesfiches in a year plan stay.
 
 ## Development
 

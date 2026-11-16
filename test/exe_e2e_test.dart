@@ -115,6 +115,13 @@ void main() {
       'reply_to_message',
       'search_recipients',
       'send_message',
+      'list_my_groups',
+      'read_my_group',
+      'create_my_group',
+      'edit_my_group',
+      'delete_my_group',
+      'add_my_group_members',
+      'remove_my_group_members',
       'search_intradesk',
       'list_intradesk_folder',
       'read_intradesk_file',
@@ -197,6 +204,9 @@ void main() {
       expect(tools[name]!['annotations'], containsPair('readOnlyHint', true));
     }
     for (final name in [
+      // The user's own mail groups, "Mijn groepen" (#231).
+      'list_my_groups',
+      'read_my_group',
       'search_planners',
       'list_planner',
       'read_planned_element',
@@ -542,6 +552,15 @@ void main() {
       // A course comment on a report (#171): the same text is not sent
       // again, so a second call gives the same state.
       ('save_skore_report_comment', true),
+      // The own mail groups (#232): a create, a change and a delete without
+      // a trash, none marked idempotent.
+      ('create_my_group', false),
+      ('edit_my_group', false),
+      ('delete_my_group', false),
+      // The members of an own group (#233): an add and a removal, neither
+      // marked idempotent.
+      ('add_my_group_members', false),
+      ('remove_my_group_members', false),
       // Ratings in a project (#192): saving the same ratings again gives the
       // same state.
       ('save_skore_project_ratings', true),
@@ -767,7 +786,7 @@ void main() {
     await server.initialize();
 
     final tools = (await server.request('tools/list'))['tools'] as List;
-    expect(tools, hasLength(90));
+    expect(tools, hasLength(97));
     expect(
       [for (final tool in tools) (tool as Map)['name']],
       containsAll([
@@ -841,7 +860,7 @@ void main() {
         await server.initialize();
 
         final tools = await listTools(server);
-        expect(tools, hasLength(72));
+        expect(tools, hasLength(79));
         expect([
           for (final tool in tools) tool['name'],
         ], everyElement(isNot(isIn(skoreTools))));
@@ -879,8 +898,8 @@ void main() {
       await server.initialize();
 
       final tools = await listTools(server);
-      expect(tools, hasLength(80));
-      expect([for (final tool in tools.skip(72)) tool['name']], skoreTools);
+      expect(tools, hasLength(87));
+      expect([for (final tool in tools.skip(79)) tool['name']], skoreTools);
       final byName = {for (final tool in tools) tool['name']: tool};
       for (final name in skoreReads) {
         expect(byName[name]!['annotations'], {
@@ -1073,7 +1092,7 @@ void main() {
         await server.initialize();
 
         final tools = await listTools(server);
-        expect(tools, hasLength(72));
+        expect(tools, hasLength(79));
         expect([
           for (final tool in tools) tool['name'],
         ], everyElement(isNot(isIn(presenceTools))));
@@ -1112,8 +1131,8 @@ void main() {
       await server.initialize();
 
       final tools = await listTools(server);
-      expect(tools, hasLength(76));
-      expect([for (final tool in tools.skip(72)) tool['name']], presenceTools);
+      expect(tools, hasLength(83));
+      expect([for (final tool in tools.skip(79)) tool['name']], presenceTools);
       final byName = {for (final tool in tools) tool['name']: tool};
       for (final name in presenceReads) {
         expect(byName[name]!['annotations'], {
@@ -1309,10 +1328,10 @@ void main() {
       await server.initialize();
 
       final tools = await listTools(server);
-      expect(tools, hasLength(84));
-      expect([for (final tool in tools.skip(80)) tool['name']], presenceTools);
+      expect(tools, hasLength(91));
+      expect([for (final tool in tools.skip(87)) tool['name']], presenceTools);
       expect([
-        for (final tool in tools.skip(72).take(8)) tool['name'],
+        for (final tool in tools.skip(79).take(8)) tool['name'],
       ], _teachersAsSubject.toList());
 
       await server.stop();
@@ -1348,7 +1367,7 @@ void main() {
         await server.initialize();
 
         final tools = await listTools(server);
-        expect(tools, hasLength(72));
+        expect(tools, hasLength(79));
         expect([
           for (final tool in tools) tool['name'],
         ], everyElement(isNot(isIn(lvsTools))));
@@ -1400,8 +1419,8 @@ void main() {
       await server.initialize();
 
       final tools = await listTools(server);
-      expect(tools, hasLength(78));
-      expect([for (final tool in tools.skip(72)) tool['name']], lvsTools);
+      expect(tools, hasLength(85));
+      expect([for (final tool in tools.skip(79)) tool['name']], lvsTools);
       final byName = {for (final tool in tools) tool['name']: tool};
       for (final name in lvsTools) {
         expect(byName[name]!['annotations'], {
@@ -1585,10 +1604,10 @@ void main() {
       await server.initialize();
 
       final tools = await listTools(server);
-      expect(tools, hasLength(90));
-      expect([for (final tool in tools.skip(84)) tool['name']], lvsTools);
+      expect(tools, hasLength(97));
+      expect([for (final tool in tools.skip(91)) tool['name']], lvsTools);
       expect(
-        [for (final tool in tools.skip(80).take(4)) tool['name']],
+        [for (final tool in tools.skip(87).take(4)) tool['name']],
         [
           'list_presence_classes',
           'list_class_presences',
@@ -1597,7 +1616,7 @@ void main() {
         ],
       );
       expect([
-        for (final tool in tools.skip(72).take(8)) tool['name'],
+        for (final tool in tools.skip(79).take(8)) tool['name'],
       ], _teachersAsSubject.toList());
 
       await server.stop();
@@ -3298,6 +3317,175 @@ void main() {
       expect(isError, isTrue, reason: name);
       expect(text, contains(refusal), reason: name);
     }
+
+    await server.stop();
+    expect(await server.stderr, isNot(contains('sending username')));
+  });
+
+  test('the own mail groups\' writes (#232): their schemas; without '
+      'settings: an error result that names the missing settings; an empty '
+      'name, or an edit that changes nothing: an error that says what to '
+      'fix, before any login', () async {
+    final server = await ServerProcess.start(
+      exePath,
+      environment: environmentWithoutSmartschool(),
+    );
+    await server.initialize();
+
+    final tools = {
+      for (final tool in (await server.request('tools/list'))['tools'] as List)
+        (tool as Map)['name']: tool,
+    };
+    Map<String, Object?> schemaOf(String name) =>
+        (tools[name]!['inputSchema'] as Map).cast();
+    expect(schemaOf('create_my_group')['required'], ['name']);
+    expect((schemaOf('create_my_group')['properties'] as Map).keys, [
+      'name',
+      'description',
+    ]);
+    expect(schemaOf('edit_my_group')['required'], ['group_id']);
+    expect((schemaOf('edit_my_group')['properties'] as Map).keys, [
+      'group_id',
+      'name',
+      'description',
+    ]);
+    expect(schemaOf('delete_my_group')['required'], ['group_id']);
+    expect(
+      tools['delete_my_group']!['description'],
+      allOf(contains('cannot be undone'), contains('number of members')),
+    );
+
+    for (final (name, arguments) in [
+      ('create_my_group', {'name': 'Reis Parijs'}),
+      ('edit_my_group', {'group_id': 900501, 'description': ''}),
+      ('delete_my_group', {'group_id': 900501}),
+    ]) {
+      final (isError, text) = await server.callTool(name, arguments: arguments);
+      expect(isError, isTrue, reason: name);
+      expect(
+        text,
+        startsWith('Not all Smartschool settings are filled in. Missing: '),
+        reason: name,
+      );
+    }
+
+    for (final (name, arguments, refusal) in [
+      ('create_my_group', {'name': '  '}, 'name is empty'),
+      (
+        'edit_my_group',
+        {'group_id': 900501, 'name': '<b></b>'},
+        'has no text outside its tags',
+      ),
+      ('edit_my_group', {'group_id': 900501}, 'there is nothing to change'),
+    ]) {
+      final (isError, text) = await server.callTool(name, arguments: arguments);
+      expect(isError, isTrue, reason: name);
+      expect(text, contains(refusal), reason: name);
+      expect(text, endsWith('Nothing was sent.'), reason: name);
+    }
+
+    await server.stop();
+    expect(await server.stderr, isNot(contains('sending username')));
+  });
+
+  test('the members of an own mail group (#233): their schemas; without '
+      'settings: an error result that names the missing settings; a group, '
+      'a co-account or a person of another school to add, or no one to '
+      'remove: an error that says what to fix, before any login', () async {
+    final server = await ServerProcess.start(
+      exePath,
+      environment: environmentWithoutSmartschool(),
+    );
+    await server.initialize();
+
+    final tools = {
+      for (final tool in (await server.request('tools/list'))['tools'] as List)
+        (tool as Map)['name']: tool,
+    };
+    Map<String, Object?> schemaOf(String name) =>
+        (tools[name]!['inputSchema'] as Map).cast();
+    for (final (name, people) in [
+      ('add_my_group_members', 'people'),
+      ('remove_my_group_members', 'members'),
+    ]) {
+      expect(schemaOf(name)['required'], ['group_id', people], reason: name);
+      expect((schemaOf(name)['properties'] as Map)[people], {
+        'type': 'array',
+        'description': isA<String>(),
+        'items': {'type': 'string', 'minLength': 1},
+        'minItems': 1,
+        'maxItems': 50,
+      }, reason: name);
+      expect(
+        tools[name]!['description'],
+        contains('check with read_my_group, and tell the user'),
+        reason: name,
+      );
+    }
+
+    for (final (name, arguments) in [
+      (
+        'add_my_group_members',
+        {
+          'group_id': 900501,
+          'people': ['Sven Lamber (user 146)'],
+        },
+      ),
+      (
+        'remove_my_group_members',
+        {
+          'group_id': 900501,
+          'members': ['Lamber Sven (user 146)'],
+        },
+      ),
+    ]) {
+      final (isError, text) = await server.callTool(name, arguments: arguments);
+      expect(isError, isTrue, reason: name);
+      expect(
+        text,
+        startsWith('Not all Smartschool settings are filled in. Missing: '),
+        reason: name,
+      );
+    }
+
+    for (final (name, arguments, refusal) in [
+      (
+        'add_my_group_members',
+        {
+          'group_id': 900501,
+          'people': ['5GZ (group 298)'],
+        },
+        'names a group, not a person',
+      ),
+      (
+        'add_my_group_members',
+        {
+          'group_id': 900501,
+          'people': ['Sven Lamber (user 146, co-account 1)'],
+        },
+        'names a co-account',
+      ),
+      (
+        'add_my_group_members',
+        {
+          'group_id': 900501,
+          'people': ['Ned Flanders (user 2231, platform 5810)'],
+        },
+        'names a person of another school of the school group',
+      ),
+    ]) {
+      final (isError, text) = await server.callTool(name, arguments: arguments);
+      expect(isError, isTrue, reason: name);
+      expect(text, contains(refusal), reason: name);
+      expect(text, endsWith('Nothing was sent.'), reason: name);
+    }
+    // No one to remove: the input schema refuses it.
+    final (isError, text) = await server.callTool(
+      'remove_my_group_members',
+      arguments: {'group_id': 900501, 'members': <String>[]},
+    );
+    expect(isError, isTrue);
+    expect(text, contains('must have at least 1'));
 
     await server.stop();
     expect(await server.stderr, isNot(contains('sending username')));

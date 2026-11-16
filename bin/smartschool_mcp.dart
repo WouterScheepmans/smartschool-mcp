@@ -18,17 +18,21 @@ import 'package:smartschool_mcp/src/skore/skore_opt_in.dart';
 import 'package:smartschool_mcp/src/tools/add_intradesk_weblink_tool.dart';
 import 'package:smartschool_mcp/src/tools/add_lesfiche_attachments_tool.dart';
 import 'package:smartschool_mcp/src/tools/add_lesson_cluster_tool.dart';
+import 'package:smartschool_mcp/src/tools/add_my_group_members_tool.dart';
 import 'package:smartschool_mcp/src/tools/add_to_lesson_cluster_tool.dart';
 import 'package:smartschool_mcp/src/tools/archive_messages_tool.dart';
 import 'package:smartschool_mcp/src/tools/clear_lesson_tool.dart';
 import 'package:smartschool_mcp/src/tools/create_intradesk_folder_tool.dart';
 import 'package:smartschool_mcp/src/tools/create_lesfiche_label_tool.dart';
 import 'package:smartschool_mcp/src/tools/create_lesfiche_tool.dart';
+import 'package:smartschool_mcp/src/tools/create_my_group_tool.dart';
 import 'package:smartschool_mcp/src/tools/create_skore_evaluation_tool.dart';
 import 'package:smartschool_mcp/src/tools/create_year_plan_tool.dart';
+import 'package:smartschool_mcp/src/tools/delete_my_group_tool.dart';
 import 'package:smartschool_mcp/src/tools/delete_year_plan_tool.dart';
 import 'package:smartschool_mcp/src/tools/duplicate_lesfiches_tool.dart';
 import 'package:smartschool_mcp/src/tools/edit_lesfiche_tool.dart';
+import 'package:smartschool_mcp/src/tools/edit_my_group_tool.dart';
 import 'package:smartschool_mcp/src/tools/edit_planned_element_tool.dart';
 import 'package:smartschool_mcp/src/tools/flag_messages_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_class_assignments_tool.dart';
@@ -37,6 +41,7 @@ import 'package:smartschool_mcp/src/tools/list_intradesk_folder_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_lesfiche_labels_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_lesfiches_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_messages_tool.dart';
+import 'package:smartschool_mcp/src/tools/list_my_groups_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_planned_lesson_clusters_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_planner_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_skore_evaluations_tool.dart';
@@ -54,6 +59,7 @@ import 'package:smartschool_mcp/src/tools/read_intradesk_file_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_lesfiche_attachment_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_lesfiche_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_message_tool.dart';
+import 'package:smartschool_mcp/src/tools/read_my_group_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_planned_element_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_skore_feedback_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_skore_gradebook_tool.dart';
@@ -62,6 +68,7 @@ import 'package:smartschool_mcp/src/tools/read_skore_report_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_year_plan_tool.dart';
 import 'package:smartschool_mcp/src/tools/remove_lesfiche_attachment_tool.dart';
 import 'package:smartschool_mcp/src/tools/remove_lesfiche_weblink_tool.dart';
+import 'package:smartschool_mcp/src/tools/remove_my_group_members_tool.dart';
 import 'package:smartschool_mcp/src/tools/reply_to_message_tool.dart';
 import 'package:smartschool_mcp/src/tools/restore_lesfiches_tool.dart';
 import 'package:smartschool_mcp/src/tools/save_intradesk_file_tool.dart';
@@ -162,6 +169,15 @@ Future<void> _serve(ServerOptions options) async {
           replyToMessageTool(session),
           searchRecipientsTool(session),
           sendMessageTool(session),
+          // The user's own mail groups, "Mijn groepen" (#231), their writes
+          // (#232) and those of their members (#233).
+          listMyGroupsTool(session),
+          readMyGroupTool(session),
+          createMyGroupTool(session),
+          editMyGroupTool(session),
+          deleteMyGroupTool(session),
+          addMyGroupMembersTool(session),
+          removeMyGroupMembersTool(session),
           searchIntradeskTool(session, intradeskIndex),
           listIntradeskFolderTool(session, intradeskIndex),
           readIntradeskFileTool(session, intradeskIndex),
