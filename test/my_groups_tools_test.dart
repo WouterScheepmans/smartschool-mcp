@@ -280,8 +280,7 @@ void main() {
       expect(
         await ok('read_my_group', {'group_id': 900502}),
         'Own group Testgroep & "co" (group 900502)\n'
-        'It has no members: the user adds people in their Smartschool '
-        'profile, under "Mijn groepen".',
+        'It has no members: add people with add_my_group_members.',
       );
       expect(server.mailbox.composeForms, 0);
     });

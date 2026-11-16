@@ -452,6 +452,17 @@ class FakeMailbox {
       _directoryUser(id)?.name ??
       _userIds.entries.firstWhere((entry) => entry.value == id).key;
 
+  /// The user of the [directory] whom the search gives the user id [id]
+  /// and the platform [platform], if any; gives no user an id.
+  FakeRecipient? searchedUser(int id, int platform) => directory
+      .where(
+        (r) =>
+            !r.isGroup &&
+            (r.id ?? _userIds[r.name]) == id &&
+            (r.platform ?? platformId) == platform,
+      )
+      .firstOrNull;
+
   /// The user of the [directory] with [id], when it was given one.
   FakeRecipient? _directoryUser(int id) =>
       directory.where((r) => !r.isGroup && r.id == id).firstOrNull;

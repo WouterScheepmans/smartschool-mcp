@@ -73,7 +73,7 @@ Future<CallToolResult> _create(
   try {
     group = await withMyGroupWrite(
       session,
-      (groups) async {
+      (groups, _) async {
         checkMyGroupNameFree(await groups.list(), name);
         return groups.create(name: name, description: description ?? '');
       },
@@ -96,8 +96,8 @@ Future<CallToolResult> _create(
         text: [
           'Made your own group ${myGroupListing(group)}.',
           'Send a message to it with send_message, as '
-              '"${myGroupReference(group)}". It has no members yet: the user '
-              'adds people $myGroupsInProfile.',
+              '"${myGroupReference(group)}". It has no members yet: add '
+              'people with add_my_group_members.',
         ].join('\n'),
       ),
     ],

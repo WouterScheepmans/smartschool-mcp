@@ -19,6 +19,11 @@ of an older version shows it when it announces the update. -->
   die je niet meer nodig hebt, telkens pas na jouw bevestiging. Een
   verwijderde groep gaat niet naar een prullenbak: hij is weg, met wie erin
   zat.
+- Claude zet ook mensen van je school in een eigen groep, en haalt er
+  iemand uit, pas na jouw bevestiging. Vindt Claude voor een naam meer dan
+  een persoon, of niemand, dan vraagt Claude wie je bedoelt. Wie al in de
+  groep zit, of er niet in zit, meldt Claude gewoon. Mensen van een andere
+  school van je scholengroep zet Claude niet in een groep.
 
 ## 0.9.0
 

@@ -16,6 +16,9 @@ const fakeMyGroupsPath = '/?module=Profile&file=mygroups';
 /// group (`usc` `mygroups_{id}`) gives each member's platform and school.
 const fakeUserSelectPath = '/?module=Userselect&file=dispatcher';
 
+/// The removal of one member of an own group, the cross on its row (#233).
+const fakeDeleteUserPath = '/Profile/Mygroups/deleteUser';
+
 /// A person in an own mail group, as the member picker lists one: user id,
 /// name (last name first, as Smartschool shows members), platform (`ssId`)
 /// and school. The own school ([FakeMailbox.platformId],
@@ -90,10 +93,16 @@ class FakeMyGroup {
 /// `1`), or "not done" for a group it does not have. A new group gets the
 /// id [nextId].
 ///
-/// The writes of #233 (the picker's `confirm Selection`, which replaces
-/// the session's selection, the post of the members form with its token,
-/// and `POST /Profile/Mygroups/deleteUser`) go into [respond] next to them,
-/// on the same [groups], selections and tokens; [writes] then lists them.
+/// The writes of the members (#233, dartschool#253) are served as the
+/// library documents them (seen live, 2026-11-16): the picker's `confirm
+/// Selection` replaces the session's selection of the group with the people
+/// it is sent (named by [person]) and answers `closeUsc` on the form `form`,
+/// saving nothing; the post of the members form (`POST users`), with the
+/// token of the members page loaded last in the session, saves that
+/// selection as the group's members, and is answered with the members page
+/// (a new token, and the selection set to the new members); and `POST
+/// /Profile/Mygroups/deleteUser` removes one member, answered `true` also
+/// for someone who is not a member. [writes] lists them.
 class FakeMyGroups {
   /// The own groups, in any order: the list sorts them by name.
   final List<FakeMyGroup> groups = [];
@@ -101,20 +110,28 @@ class FakeMyGroups {
   /// The id the next group made gets.
   int nextId = 900601;
 
+  /// The person the member picker knows by user id and platform, for a
+  /// `confirm Selection` that names someone who is not a member yet: as
+  /// `FakeSmartschool` wires it, the people of its mailbox's directory.
+  FakeMyGroupMember? Function(int userId, int platform) person = (_, _) => null;
+
   /// The requests, in order: `GET main`, `GET users <id>`,
   /// `POST userSelect/get Items Selected <usc>`, `GET addedit` and
   /// `POST addedit` (the form for a new group and its save),
   /// `GET addedit <id>` and `POST addedit <id>` (the edit form of a group
-  /// and its save), `GET delete <id>`, and for the routes that are not served
-  /// `GET <function> <id>` or `POST <path>`.
+  /// and its save), `GET delete <id>`,
+  /// `POST userSelect/confirm Selection <usc>` and `POST users <id>` (a new
+  /// selection and the members form that saves it),
+  /// `POST deleteUser <group id> <user id>`, and for the routes that are
+  /// not served `GET <function> <id>` or `POST <path>`.
   final List<String> requests = [];
 
   /// The saves of the form of a group, as they went out: their form fields.
   final List<Map<String, String>> saves = [];
 
-  /// Routes of a write (`save`, `delete`) whose write is handled, after
-  /// which the connection drops before the answer comes in: the write was
-  /// made, but the library cannot confirm it.
+  /// Routes of a write (`save`, `delete`, `members`, `deleteUser`) whose
+  /// write is handled, after which the connection drops before the answer
+  /// comes in: the write was made, but the library cannot confirm it.
   final Set<String> dropping = {};
 
   /// Called with each request, as [requests] records it, before it is
@@ -141,10 +158,12 @@ class FakeMyGroups {
     'POST userSelect/get Items Selected ',
   ];
 
-  /// Routes (`main`, `users`, `picker`, `form`, `save`, `delete`) answered
-  /// with an error page and this HTTP status instead, without handling a
-  /// write; with `200`, an HTML page where another page or XML was
-  /// expected. `main` is the list itself, also after a save.
+  /// Routes (`main`, `users`, `picker`, `form`, `save`, `delete`, and of
+  /// #233 `confirm`, the picker's `confirm Selection`, `members`, the post
+  /// of the members form, and `deleteUser`) answered with an error page and
+  /// this HTTP status instead, without handling a write; with `200`, an
+  /// HTML page where another page or XML was expected. `main` is the list
+  /// itself, also after a save; `picker` is every request of the picker.
   final Map<String, int> failing = {};
 
   /// The token of the form of a group loaded last in each session.
@@ -174,6 +193,7 @@ class FakeMyGroups {
   ResponseBody? respond(RequestOptions options) {
     final uri = options.uri;
     final query = uri.queryParameters;
+    if (uri.path == fakeDeleteUserPath) return _removeUser(options);
     if (uri.path != '/') return null;
     if (query['module'] == 'Profile' && query['file'] == 'mygroups') {
       return _profile(options, query);
@@ -190,6 +210,9 @@ class FakeMyGroups {
     final session = sessionOf(options);
     if (options.method == 'POST' && function == 'addedit') {
       return _save(options, id, session);
+    }
+    if (options.method == 'POST' && function == 'users') {
+      return _saveMembers(options, id, session);
     }
     if (options.method != 'GET') {
       _record('${options.method} $function ${id ?? ''}'.trim());
@@ -228,11 +251,7 @@ class FakeMyGroups {
           // "De actie werd niet correct uitgevoerd!".
           return _html(_listPage(feedback: 2));
         }
-        (_selections[session] ??= {})['mygroups_${group.id}'] = [
-          ...group.members,
-        ];
-        final token = _tokens[session] = 'fake-token-${++_tokensGiven}';
-        return _html(_membersPage(group, token));
+        return _membersAnswer(group, session);
     }
     _record('GET $function ${id ?? ''}'.trim());
     return _html('<html><body>Not in the fake</body></html>', status: 404);
@@ -278,6 +297,72 @@ class FakeMyGroups {
 
   static final _tags = RegExp(r'<[^>]*>');
 
+  /// The members page of [group], loaded in [session]: it sets the picker's
+  /// selection of the group in that session to the current members, and
+  /// hands out a new token for its members form.
+  ResponseBody _membersAnswer(FakeMyGroup group, String? session) {
+    (_selections[session] ??= {})['mygroups_${group.id}'] = [...group.members];
+    final token = _tokens[session] = 'fake-token-${++_tokensGiven}';
+    return _html(_membersPage(group, token));
+  }
+
+  /// A post of the members form of the group with [id] (#233): with the
+  /// token of the members page loaded last in [session], it saves the
+  /// picker's selection of the group in that session as its members
+  /// (replacing them, as Smartschool does), and is answered with the members
+  /// page (seen live). A form with another token saves nothing; what
+  /// Smartschool answers to it has not been seen.
+  ResponseBody _saveMembers(RequestOptions options, int? id, String? session) {
+    _record('POST users $id');
+    if (failing['members'] case final status?) return _errorPage(status);
+    final group = _group(id);
+    // Not seen live: answered as the members page of such an id.
+    if (group == null) return _html(_listPage(feedback: 2));
+    final fields = _fields(options.data);
+    final selection = _selections[session]?['mygroups_${group.id}'];
+    if (fields['_csrf_token'] != null &&
+        fields['_csrf_token'] == _tokens[session] &&
+        fields['store'] == '1' &&
+        selection != null) {
+      group.members
+        ..clear()
+        ..addAll(selection);
+    }
+    if (dropping.contains('members')) throw _dropped(options);
+    return _membersAnswer(group, session);
+  }
+
+  /// The removal of one member (#233): `POST /Profile/Mygroups/deleteUser`
+  /// with `userID` and `groupID`, answered `200`, `application/json`,
+  /// `true`, also for someone who is not a member (seen live).
+  ResponseBody _removeUser(RequestOptions options) {
+    final fields = _fields(options.data);
+    _record(
+      '${options.method} deleteUser ${fields['groupID']} ${fields['userID']}',
+    );
+    if (options.method != 'POST') {
+      return _html('<html><body>Not in the fake</body></html>', status: 404);
+    }
+    if (failing['deleteUser'] case final status?) return _errorPage(status);
+    final user = int.tryParse(fields['userID'] ?? '');
+    _group(
+      int.tryParse(fields['groupID'] ?? ''),
+    )?.members.removeWhere((member) => member.userId == user);
+    if (dropping.contains('deleteUser')) throw _dropped(options);
+    return ResponseBody.fromString(
+      'true',
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
+    );
+  }
+
+  /// The fields of a form-encoded request's [data], as text.
+  static Map<String, String> _fields(Object? data) => data is Map
+      ? {for (final entry in data.entries) '${entry.key}': '${entry.value}'}
+      : const {};
+
   /// The connection dropping after a request went out and was handled.
   static Object _dropped(RequestOptions options) =>
       DioException.connectionError(
@@ -310,6 +395,10 @@ class FakeMyGroups {
         },
       );
     }
+    if (command.subsystem == 'userSelect' &&
+        command.action == 'confirm Selection') {
+      return _confirmSelection(sessionOf(options), usc, command.params);
+    }
     if (command.subsystem != 'userSelect' ||
         command.action != 'get Items Selected') {
       return _xml(_pickerStatus('error'));
@@ -320,6 +409,50 @@ class FakeMyGroups {
     // selection, which the library refuses.
     if (selection == null) return _xml(_pickerStatus('ok'));
     return _xml(_selectionAnswer(selection));
+  }
+
+  /// The picker's `confirm Selection` of [usc] in [session] (#233): the
+  /// selection it is sent (`xml`, an `<item>` with its `type`, `ssId` and
+  /// `id` per person) becomes the session's selection of the group, each
+  /// person named as the current selection names them,
+  /// or by [person]; someone the picker does not know is left out (what
+  /// Smartschool does then has not been seen). Answered `closeUsc` on the
+  /// form `form` (the dartschool fixture `confirm-selection.xml`), saving
+  /// nothing.
+  ResponseBody _confirmSelection(
+    String? session,
+    String usc,
+    Map<String, String> params,
+  ) {
+    if (failing['confirm'] case final status?) return _errorPage(status);
+    final current = _selections[session]?[usc] ?? const [];
+    final selection = <FakeMyGroupMember>[];
+    for (final item in XmlDocument.parse(
+      params['xml'] ?? '<items/>',
+    ).findAllElements('item')) {
+      int? number(String tag) =>
+          int.tryParse(item.getElement(tag)?.innerText.trim() ?? '');
+      final (id, platform) = (number('id'), number('ssId'));
+      if (item.getElement('type')?.innerText.trim() != 'U' ||
+          id == null ||
+          platform == null) {
+        continue;
+      }
+      final member =
+          current
+              .where((m) => m.userId == id && m.platform == platform)
+              .firstOrNull ??
+          person(id, platform);
+      if (member != null) selection.add(member);
+    }
+    (_selections[session] ??= {})[usc] = selection;
+    return _xml(
+      '<?xml version="1.0" encoding="UTF-8"?>\n'
+      '<server><response><status>ok</status><actions><action>\n'
+      '<subsystem>userselect</subsystem><command>closeUsc</command>\n'
+      '<data><close><type>1</type><formname>form</formname></close></data>\n'
+      '</action></actions></response></server>\n',
+    );
   }
 
   /// The list of own groups, sorted by name, unescaped as Smartschool sends

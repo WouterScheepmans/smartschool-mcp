@@ -59,7 +59,7 @@ Future<CallToolResult> _delete(
   try {
     await withMyGroupWrite(
       session,
-      (groups) async {
+      (groups, _) async {
         group = findMyGroup(await groups.list(), id);
         try {
           await groups.delete(group);

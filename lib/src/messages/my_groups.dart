@@ -6,6 +6,7 @@ import 'package:html/parser.dart' as html_parser;
 import '../log.dart';
 import '../session.dart';
 import '../tools/server_tool.dart';
+import 'recipient_search.dart';
 
 // The user's own mail groups (#231): "Mijn groepen" in the Smartschool
 // profile, each a group of people the user keeps, which the search of the
@@ -15,7 +16,7 @@ import '../tools/server_tool.dart';
 // `list_my_groups` and `read_my_group`, by the writes of the groups
 // themselves (#232, dartschool#252: `create_my_group`, `edit_my_group`,
 // `delete_my_group`, [withMyGroupWrite]), and by those of their members
-// (#233).
+// (#233, dartschool#253: `add_my_group_members`, `remove_my_group_members`).
 //
 // The tools name a group by its id, as `list_my_groups` shows it in
 // `(group <id>)`: the id the compose search gives the group, so that a line
@@ -210,8 +211,8 @@ String formatMyGroupMembers(
 }) {
   final header = 'Own group ${myGroupListing(group)}';
   if (members.isEmpty) {
-    return '$header\nIt has no members: the user adds people '
-        '$myGroupsInProfile.';
+    return '$header\nIt has no members: add people with '
+        'add_my_group_members.';
   }
   final count = members.length == 1 ? '1 member' : '${members.length} members';
   return [
@@ -250,9 +251,9 @@ Future<int?> ownPlatform(SmartschoolClient client) async {
 const myGroupNothingSent = 'Nothing was sent.';
 
 /// Runs the write [action] of an own group (`create_my_group`,
-/// `edit_my_group`, `delete_my_group`) with the session's logged-in client
-/// and a [MyGroupsService] of it; [what] names the write (like `the new own
-/// group "Reis Parijs"`) for its errors.
+/// `edit_my_group`, `delete_my_group`, and those of its members, #233) with
+/// the session's logged-in client and a [MyGroupsService] of it; [what]
+/// names the write (like `the new own group "Reis Parijs"`) for its errors.
 ///
 /// The library's errors before the write went out become [ToolError]s that
 /// end in [nothingDone]: an [ArgumentError] (the library refused the write
@@ -266,18 +267,21 @@ const myGroupNothingSent = 'Nothing was sent.';
 /// connection failures stay [SmartschoolProblem]s.
 ///
 /// The library sends a save and a delete once ("Sent once" in its
-/// `doc/my-groups.md`): Smartschool refusing the session for it means it
-/// was not handled. So [SmartschoolSession.run] may run [action] again,
-/// with the reads before the write.
+/// `doc/my-groups.md`), and a change of the members too (the picker's new
+/// selection and the members form, "One session, sent once"): Smartschool
+/// refusing the session for it means it was not handled. So
+/// [SmartschoolSession.run] may run [action] again, with the reads before
+/// the write. The removal of a member goes out again after logging in
+/// (dartschool#253): removing someone twice removes no one else.
 Future<T> withMyGroupWrite<T>(
   SmartschoolSession session,
-  Future<T> Function(MyGroupsService groups) action, {
+  Future<T> Function(MyGroupsService groups, SmartschoolClient client) action, {
   required String what,
   required String nothingDone,
 }) async {
   try {
     return await session.run(
-      (client) => action(MyGroupsService(client)),
+      (client) => action(MyGroupsService(client), client),
       describeError: _describe,
     );
   } on SmartschoolMyGroupSaveUnconfirmedError {
@@ -366,6 +370,8 @@ void checkMyGroupNameFree(List<MyGroup> groups, String name, {int? except}) {
 /// may or may not have been [done] (a past participle). Claude must not
 /// call [tool] again for it, but list the groups first ([check] says what
 /// to look for, like `to see whether it is there`) and tell the user.
+/// [checkWith] says what to read instead of the list: for a change of the
+/// members, the members ([readMyGroupToCheck], #233).
 ///
 /// The log gets the status or the type of the failure, never the library's
 /// message.
@@ -375,6 +381,33 @@ CallToolResult myGroupWriteNotConfirmed({
   required String done,
   required String check,
   required SmartschoolMyGroupSaveUnconfirmedError error,
+  String checkWith = 'list your own groups with list_my_groups',
+}) => CallToolResult(
+  isError: true,
+  content: [
+    TextContent(
+      text: myGroupNotConfirmedText(
+        tool: tool,
+        what: what,
+        done: done,
+        check: check,
+        error: error,
+        checkWith: checkWith,
+      ),
+    ),
+  ],
+);
+
+/// The text of [myGroupWriteNotConfirmed], which it logs as that does;
+/// also for `remove_my_group_members`, which says it after the members it
+/// did remove (#233).
+String myGroupNotConfirmedText({
+  required String tool,
+  required String what,
+  required String done,
+  required String check,
+  required SmartschoolMyGroupSaveUnconfirmedError error,
+  String checkWith = 'list your own groups with list_my_groups',
 }) {
   final why = switch (error) {
     SmartschoolMyGroupSaveUnconfirmedError(:final int statusCode) =>
@@ -384,16 +417,85 @@ CallToolResult myGroupWriteNotConfirmed({
     _ => 'an answer that does not confirm it',
   };
   log('$tool: Smartschool did not confirm the write, not retrying ($why)');
-  return CallToolResult(
-    isError: true,
-    content: [
-      TextContent(
-        text:
-            '$what may or may not have been $done: it was sent, but '
-            'Smartschool did not confirm it. Do not call $tool again for it. '
-            'First list your own groups with list_my_groups $check. Then '
-            'tell the user what you found.',
-      ),
-    ],
-  );
+  return '$what may or may not have been $done: it was sent, but Smartschool '
+      'did not confirm it. Do not call $tool again for it. First $checkWith '
+      '$check. Then tell the user what you found.';
 }
+
+// ---------------------------------------------------------------------------
+// The members of a group (#233)
+// ---------------------------------------------------------------------------
+
+/// What `add_my_group_members` and `remove_my_group_members` read to check
+/// a change of the members of own group [id] that Smartschool did not
+/// confirm: `checkWith` of [myGroupWriteNotConfirmed].
+String readMyGroupToCheck(int id) =>
+    'read the members of the group with read_my_group (group_id $id)';
+
+/// [count] members, like `no members`, `1 member` or `3 members`.
+String myGroupMemberCount(int count) => switch (count) {
+  0 => 'no members',
+  1 => '1 member',
+  _ => '$count members',
+};
+
+/// The [ToolError] for own group [group], which has a member that is not a
+/// person (a class or a Smartschool group, added in Smartschool with the
+/// picker's tabs; not seen live): the library does not change the members
+/// of such a group (a [SmartschoolMyGroupsError] before sending), as what
+/// it holds was not tried. Said in plain words, before anything is sent;
+/// [nothingDone] says what did not happen.
+ToolError myGroupNotOnlyPeople(MyGroup group, {required String nothingDone}) =>
+    ToolError(
+      'Your own group ${myGroupReference(group)} has a member that is not a '
+      'person (a class or a group): the server does not change the members '
+      'of such a group, as that was not tried in Smartschool. The user '
+      'changes its members $myGroupsInProfile. $nothingDone',
+    );
+
+/// At most this many people per call of `add_my_group_members` and of
+/// `remove_my_group_members`, as many as `send_message` takes in one field.
+const maxMyGroupMemberChanges = 50;
+
+/// The input schema of the people argument of `add_my_group_members`
+/// (`people`) and `remove_my_group_members` (`members`): 1 to
+/// [maxMyGroupMemberChanges] texts.
+Schema myGroupPeopleSchema(String description) => Schema.list(
+  description: description,
+  items: Schema.string(minLength: 1),
+  minItems: 1,
+  maxItems: maxMyGroupMemberChanges,
+);
+
+/// The argument [name] of [arguments] ([myGroupPeopleSchema]), each text
+/// trimmed and once (ignoring case and extra spaces), in the order given.
+///
+/// Throws a [ToolError], before anything is sent, for an empty list and for
+/// an entry that is not text, or empty.
+List<String> myGroupPeopleArgument(
+  Map<String, Object?> arguments,
+  String name,
+) {
+  final values = switch (arguments[name]) {
+    final List<Object?> values when values.isNotEmpty => values,
+    _ => throw ToolError(
+      '$name must list at least one person. $myGroupNothingSent',
+    ),
+  };
+  final seen = <String>{};
+  return [
+    for (final value in values)
+      if (value is! String || value.trim().isEmpty)
+        throw ToolError(
+          'Each entry of $name must be a person, like "Sven Lamber (user '
+          '146)"; ${value is String ? 'an empty one' : '$value'} is not. '
+          '$myGroupNothingSent',
+        )
+      else if (seen.add(normalName(value)))
+        value.trim(),
+  ];
+}
+
+/// [count] people, like `1 person` or `3 people`.
+String myGroupPeopleCount(int count) =>
+    count == 1 ? '1 person' : '$count people';

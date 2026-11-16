@@ -144,8 +144,18 @@ class FakeSmartschool implements HttpClientAdapter {
 
   /// The user's own mail groups ("Mijn groepen" in the profile, #231),
   /// served to logged-in requests; the search of [mailbox] finds them as
-  /// groups.
-  final FakeMyGroups myGroups = FakeMyGroups();
+  /// groups. Its member picker knows the people of the [mailbox]'s
+  /// directory as its search gives them (#233).
+  late final FakeMyGroups myGroups = FakeMyGroups()
+    ..person = (id, platform) => switch (mailbox.searchedUser(id, platform)) {
+      null => null,
+      final user => FakeMyGroupMember(
+        id,
+        user.name,
+        platform: platform,
+        school: user.school ?? FakeMailbox.ownSchool,
+      ),
+    };
 
   /// The Intradesk module, served to logged-in requests.
   late final FakeIntradesk intradesk = FakeIntradesk(uploads: uploads);

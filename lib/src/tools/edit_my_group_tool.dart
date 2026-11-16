@@ -88,7 +88,7 @@ Future<CallToolResult> _edit(
   try {
     saved = await withMyGroupWrite(
       session,
-      (groups) async {
+      (groups, _) async {
         final all = await groups.list();
         before = findMyGroup(all, id);
         if (name != null) checkMyGroupNameFree(all, name, except: id);

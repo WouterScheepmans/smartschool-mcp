@@ -105,6 +105,14 @@
       "description": "Verwijdert een van je eigen groepen met zijn ledenlijst, voorgoed: er is geen prullenbak. Pas na jouw bevestiging."
     },
     {
+      "name": "add_my_group_members",
+      "description": "Zet mensen van je school in een van je eigen groepen. Pas na jouw bevestiging."
+    },
+    {
+      "name": "remove_my_group_members",
+      "description": "Haalt mensen uit een van je eigen groepen. Pas na jouw bevestiging."
+    },
+    {
       "name": "search_intradesk",
       "description": "Zoekt mappen, bestanden en weblinks op Intradesk op naam."
     },

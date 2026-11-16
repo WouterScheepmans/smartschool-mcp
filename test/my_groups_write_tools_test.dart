@@ -175,8 +175,8 @@ void main() {
       await ok('create_my_group', {'name': 'dartschool test'}),
       'Made your own group dartschool test (group 900601).\n'
       'Send a message to it with send_message, as "dartschool test (group '
-      '900601)". It has no members yet: the user adds people in their '
-      'Smartschool profile, under "Mijn groepen".',
+      '900601)". It has no members yet: add people with '
+      'add_my_group_members.',
     );
     expect(
       await ok('list_my_groups'),
