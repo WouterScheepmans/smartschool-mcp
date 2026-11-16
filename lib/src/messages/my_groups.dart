@@ -1,6 +1,7 @@
 import 'package:dart_mcp/server.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_smartschool/flutter_smartschool.dart';
+import 'package:html/parser.dart' as html_parser;
 
 import '../log.dart';
 import '../session.dart';
@@ -11,8 +12,10 @@ import '../tools/server_tool.dart';
 // compose form finds by name, as a group, so that a message to one goes to
 // all its members. Read with the library's `MyGroupsService`
 // (flutter_smartschool 0.4.6, yvanvds/dartschool#251). Shared by
-// `list_my_groups` and `read_my_group`, and by the writes that follow
-// (#232: make, rename and delete a group; #233: its members).
+// `list_my_groups` and `read_my_group`, by the writes of the groups
+// themselves (#232, dartschool#252: `create_my_group`, `edit_my_group`,
+// `delete_my_group`, [withMyGroupWrite]), and by those of their members
+// (#233).
 //
 // The tools name a group by its id, as `list_my_groups` shows it in
 // `(group <id>)`: the id the compose search gives the group, so that a line
@@ -134,8 +137,14 @@ MyGroup findMyGroup(List<MyGroup> groups, int id) {
 
 /// The [ToolError] for the id [id], which none of the user's own groups
 /// [groups] has: with those groups, each as `list_my_groups` lists it.
-ToolError unknownMyGroup(List<MyGroup> groups, int id) => ToolError(
-  'You have no own group with id $id (any more). Nothing was sent. '
+/// [nothingDone] says what did not happen: by default that nothing was
+/// sent, for a refusal before any write went out.
+ToolError unknownMyGroup(
+  List<MyGroup> groups,
+  int id, {
+  String nothingDone = myGroupNothingSent,
+}) => ToolError(
+  'You have no own group with id $id (any more). $nothingDone '
   '${groups.isEmpty ? 'You have no own groups: the user makes them $myGroupsInProfile.' : 'Your own groups:\n${[for (final group in groups) '- ${myGroupListing(group)}'].join('\n')}'}',
 );
 
@@ -231,4 +240,160 @@ Future<int?> ownPlatform(SmartschoolClient client) async {
   } finally {
     await messages.dispose();
   }
+}
+
+// ---------------------------------------------------------------------------
+// The writes of a group (#232)
+// ---------------------------------------------------------------------------
+
+/// What a write of an own group says when it refused before sending.
+const myGroupNothingSent = 'Nothing was sent.';
+
+/// Runs the write [action] of an own group (`create_my_group`,
+/// `edit_my_group`, `delete_my_group`) with the session's logged-in client
+/// and a [MyGroupsService] of it; [what] names the write (like `the new own
+/// group "Reis Parijs"`) for its errors.
+///
+/// The library's errors before the write went out become [ToolError]s that
+/// end in [nothingDone]: an [ArgumentError] (the library refused the write
+/// before sending it: a blank name, or one another own group has, which
+/// the tools check first themselves), and the errors of [myGroupsToolError]
+/// (a read before the save that Smartschool answered with something the
+/// library cannot use). A [ToolError] of [action] itself (a check before
+/// sending) is thrown as it is, and so is a
+/// [SmartschoolMyGroupSaveUnconfirmedError]: the write went out, and may or
+/// may not have been made ([myGroupWriteNotConfirmed]). Login and
+/// connection failures stay [SmartschoolProblem]s.
+///
+/// The library sends a save and a delete once ("Sent once" in its
+/// `doc/my-groups.md`): Smartschool refusing the session for it means it
+/// was not handled. So [SmartschoolSession.run] may run [action] again,
+/// with the reads before the write.
+Future<T> withMyGroupWrite<T>(
+  SmartschoolSession session,
+  Future<T> Function(MyGroupsService groups) action, {
+  required String what,
+  required String nothingDone,
+}) async {
+  try {
+    return await session.run(
+      (client) => action(MyGroupsService(client)),
+      describeError: _describe,
+    );
+  } on SmartschoolMyGroupSaveUnconfirmedError {
+    rethrow;
+  } on ToolError {
+    rethrow;
+  } on ArgumentError catch (error) {
+    if (error is RangeError) rethrow;
+    // Its message can quote the name: the log gets the argument's name.
+    log('my groups: refused before sending (${error.name ?? 'no name'})');
+    final message = '${error.message ?? ''}'.trim();
+    final startsLower =
+        message.isNotEmpty && message[0] != message[0].toUpperCase();
+    throw ToolError(
+      '${what[0].toUpperCase()}${what.substring(1)} was refused before it '
+      'was sent: ${startsLower && error.name != null ? '${error.name} ' : ''}'
+      '${message.endsWith('.') ? message : '$message.'} $nothingDone',
+    );
+  } catch (error) {
+    final toolError = myGroupsToolError(error);
+    if (toolError == null) rethrow;
+    throw ToolError('${toolError.message} $nothingDone');
+  }
+}
+
+/// [value], the `name` argument of `create_my_group` or `edit_my_group`,
+/// trimmed.
+///
+/// Throws a [ToolError], before anything is sent, when it is empty, or has
+/// no text outside its tags: Smartschool removes tags from a name, and
+/// refuses an own group without a name without saying why.
+String myGroupNameArgument(Object? value) {
+  final name = value is String ? value.trim() : '';
+  if (name.isEmpty) {
+    throw const ToolError(
+      'name is empty: an own group needs a name, and Smartschool refuses one '
+      'without. Ask the user for a name. $myGroupNothingSent',
+    );
+  }
+  if (myGroupTextAsListed(name).isEmpty) {
+    throw ToolError(
+      'name "$name" has no text outside its tags, which Smartschool removes: '
+      'an own group needs a name. Ask the user for a name in plain text. '
+      '$myGroupNothingSent',
+    );
+  }
+  return name;
+}
+
+/// [value], the `description` argument of `create_my_group` or
+/// `edit_my_group`, trimmed: `''` empties the description, `null` (absent)
+/// leaves it as it is.
+String? myGroupDescriptionArgument(Object? value) =>
+    value is String ? value.trim() : null;
+
+/// [text], a name or a description sent in a save, as the list of own
+/// groups shows it after Smartschool saved it: without its tags, which
+/// Smartschool strips, read as the text of HTML (the list does not escape
+/// it), and trimmed. The library compares a name with the names of the
+/// list so (`MyGroupsService`, "Plain text" in its `doc/my-groups.md`).
+String myGroupTextAsListed(String text) =>
+    (html_parser.parseFragment(text).text ?? '').trim();
+
+/// Throws a [ToolError], naming the group, when an own group of [groups]
+/// other than the one with the id [except] has the name [name] already, as
+/// the list shows it ([myGroupTextAsListed]): two own groups with one name
+/// cannot be told apart in the compose search, so neither in
+/// `search_recipients` nor in `send_message`. The library refuses such a
+/// name too, but names the group by its id only.
+void checkMyGroupNameFree(List<MyGroup> groups, String name, {int? except}) {
+  final listed = myGroupTextAsListed(name);
+  for (final group in groups) {
+    if (group.id != except && group.name == listed) {
+      throw ToolError(
+        'Your own group ${myGroupReference(group)} has that name already: '
+        'two own groups with one name cannot be told apart in '
+        'search_recipients and send_message. Ask the user for another name. '
+        '$myGroupNothingSent',
+      );
+    }
+  }
+}
+
+/// The result of a write of an own group that went out without Smartschool
+/// confirming it ([error]): [what] (like `Your own group "Reis Parijs"`)
+/// may or may not have been [done] (a past participle). Claude must not
+/// call [tool] again for it, but list the groups first ([check] says what
+/// to look for, like `to see whether it is there`) and tell the user.
+///
+/// The log gets the status or the type of the failure, never the library's
+/// message.
+CallToolResult myGroupWriteNotConfirmed({
+  required String tool,
+  required String what,
+  required String done,
+  required String check,
+  required SmartschoolMyGroupSaveUnconfirmedError error,
+}) {
+  final why = switch (error) {
+    SmartschoolMyGroupSaveUnconfirmedError(:final int statusCode) =>
+      'HTTP $statusCode',
+    SmartschoolMyGroupSaveUnconfirmedError(:final Object cause) =>
+      'no answer: ${cause.runtimeType}',
+    _ => 'an answer that does not confirm it',
+  };
+  log('$tool: Smartschool did not confirm the write, not retrying ($why)');
+  return CallToolResult(
+    isError: true,
+    content: [
+      TextContent(
+        text:
+            '$what may or may not have been $done: it was sent, but '
+            'Smartschool did not confirm it. Do not call $tool again for it. '
+            'First list your own groups with list_my_groups $check. Then '
+            'tell the user what you found.',
+      ),
+    ],
+  );
 }

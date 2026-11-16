@@ -93,6 +93,18 @@
       "description": "Toont wie er in een van je eigen groepen zit."
     },
     {
+      "name": "create_my_group",
+      "description": "Maakt een nieuwe eigen groep in \"Mijn groepen\", met een naam en een omschrijving. Pas na jouw bevestiging."
+    },
+    {
+      "name": "edit_my_group",
+      "description": "Wijzigt de naam of de omschrijving van een van je eigen groepen. Pas na jouw bevestiging."
+    },
+    {
+      "name": "delete_my_group",
+      "description": "Verwijdert een van je eigen groepen met zijn ledenlijst, voorgoed: er is geen prullenbak. Pas na jouw bevestiging."
+    },
+    {
       "name": "search_intradesk",
       "description": "Zoekt mappen, bestanden en weblinks op Intradesk op naam."
     },

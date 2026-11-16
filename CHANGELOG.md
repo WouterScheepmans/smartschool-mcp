@@ -14,6 +14,11 @@ of an older version shows it when it announces the update. -->
   Smartschool-profiel, en wie er in een groep zit. Vraag je een bericht aan
   "mijn groep Projectwerk", dan weet Claude zo welke groep je bedoelt en naar
   wie het bericht gaat.
+- Claude maakt ook een nieuwe eigen groep voor een project of een uitstap,
+  geeft een groep een andere naam of omschrijving, en verwijdert een groep
+  die je niet meer nodig hebt, telkens pas na jouw bevestiging. Een
+  verwijderde groep gaat niet naar een prullenbak: hij is weg, met wie erin
+  zat.
 
 ## 0.9.0
 

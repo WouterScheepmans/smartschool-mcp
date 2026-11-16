@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:xml/xml.dart';
@@ -76,21 +77,45 @@ class FakeMyGroup {
 /// selection, and redirects a request without `X-Requested-With` to the
 /// start page. The list does not escape names and descriptions.
 ///
-/// The reads are served now (#231). The writes of #232 (the form of a group
-/// with its token, its save answered `302` to the list, the delete answered
-/// with the list, and the feedback the next list shows: [_feedback]) and of
-/// #233 (the picker's `confirm Selection`, which replaces the session's
-/// selection, the post of the members form with its token, and
-/// `POST /Profile/Mygroups/deleteUser`) go into [respond] next to them, on
-/// the same [groups], selections and tokens; [writes] then lists them.
+/// The writes of a group itself (#232, dartschool#252) are served as the
+/// library documents them (seen live, 2026-11-16): the form of a group
+/// (`GET addedit`, with `mID` for an existing one) with a new token for
+/// every load, kept per session; its save (`POST addedit`, to the URL the
+/// form was loaded from), which strips tags from the name and the
+/// description, as Smartschool does, and is answered `302` to the list
+/// (`function=main`), keeping the feedback "not done" (type `2`) in the
+/// session ([_feedback]) for a save it refuses (a wrong token, an empty
+/// name, a group it does not have); and the delete (`GET delete`), answered
+/// with the list itself, without the group, and the feedback "done" (type
+/// `1`), or "not done" for a group it does not have. A new group gets the
+/// id [nextId].
+///
+/// The writes of #233 (the picker's `confirm Selection`, which replaces
+/// the session's selection, the post of the members form with its token,
+/// and `POST /Profile/Mygroups/deleteUser`) go into [respond] next to them,
+/// on the same [groups], selections and tokens; [writes] then lists them.
 class FakeMyGroups {
   /// The own groups, in any order: the list sorts them by name.
   final List<FakeMyGroup> groups = [];
 
+  /// The id the next group made gets.
+  int nextId = 900601;
+
   /// The requests, in order: `GET main`, `GET users <id>`,
-  /// `POST userSelect/get Items Selected <usc>`, and for the routes that are
-  /// not served `GET <function> <id>` or `POST <path>`.
+  /// `POST userSelect/get Items Selected <usc>`, `GET addedit` and
+  /// `POST addedit` (the form for a new group and its save),
+  /// `GET addedit <id>` and `POST addedit <id>` (the edit form of a group
+  /// and its save), `GET delete <id>`, and for the routes that are not served
+  /// `GET <function> <id>` or `POST <path>`.
   final List<String> requests = [];
+
+  /// The saves of the form of a group, as they went out: their form fields.
+  final List<Map<String, String>> saves = [];
+
+  /// Routes of a write (`save`, `delete`) whose write is handled, after
+  /// which the connection drops before the answer comes in: the write was
+  /// made, but the library cannot confirm it.
+  final Set<String> dropping = {};
 
   /// Called with each request, as [requests] records it, before it is
   /// answered, so that a test can change the groups in between: for
@@ -116,10 +141,14 @@ class FakeMyGroups {
     'POST userSelect/get Items Selected ',
   ];
 
-  /// Routes (`main`, `users`, `picker`) answered with an error page and
-  /// this HTTP status instead; with `200`, an HTML page where another page
-  /// or XML was expected.
+  /// Routes (`main`, `users`, `picker`, `form`, `save`, `delete`) answered
+  /// with an error page and this HTTP status instead, without handling a
+  /// write; with `200`, an HTML page where another page or XML was
+  /// expected. `main` is the list itself, also after a save.
   final Map<String, int> failing = {};
+
+  /// The token of the form of a group loaded last in each session.
+  final Map<String?, String> _formTokens = {};
 
   /// The feedback type (`1` done, `2` not done) the next list in a session
   /// shows, by session: Smartschool keeps it until a page shows it.
@@ -159,11 +188,33 @@ class FakeMyGroups {
     final function = query['function'] ?? 'main';
     final id = int.tryParse(query['mID'] ?? '');
     final session = sessionOf(options);
+    if (options.method == 'POST' && function == 'addedit') {
+      return _save(options, id, session);
+    }
     if (options.method != 'GET') {
       _record('${options.method} $function ${id ?? ''}'.trim());
       return _html('<html><body>Not in the fake</body></html>', status: 404);
     }
     switch (function) {
+      case 'addedit':
+        _record('GET addedit ${id ?? ''}'.trim());
+        if (failing['form'] case final status?) return _errorPage(status);
+        final group = _group(id);
+        if (id != null && group == null) {
+          // Seen live for an id the user has no group of: the list, with
+          // "De actie werd niet correct uitgevoerd!".
+          return _html(_listPage(feedback: 2));
+        }
+        final token = _formTokens[session] = 'fake-token-${++_tokensGiven}';
+        return _html(_formPage(token, group));
+      case 'delete':
+        _record('GET delete $id');
+        if (failing['delete'] case final status?) return _errorPage(status);
+        final group = _group(id);
+        if (group != null) groups.remove(group);
+        if (dropping.contains('delete')) throw _dropped(options);
+        // Answered with the list itself, not a redirect (seen live).
+        return _html(_listPage(feedback: group == null ? 2 : 1));
       case 'main':
         _record('GET main');
         if (failing['main'] case final status?) return _errorPage(status);
@@ -186,6 +237,54 @@ class FakeMyGroups {
     _record('GET $function ${id ?? ''}'.trim());
     return _html('<html><body>Not in the fake</body></html>', status: 404);
   }
+
+  /// A save of the form of a group: a new one without [id], the group with
+  /// that id otherwise. Answered `302` to the list (seen live), with the
+  /// feedback "not done" kept in [session] for a save Smartschool refuses.
+  ResponseBody _save(RequestOptions options, int? id, String? session) {
+    _record('POST addedit ${id ?? ''}'.trim());
+    if (failing['save'] case final status?) return _errorPage(status);
+    final data = options.data;
+    final fields = data is Map
+        ? {for (final entry in data.entries) '${entry.key}': '${entry.value}'}
+        : const <String, String>{};
+    saves.add(fields);
+    // Smartschool strips the tags of a saved name and description.
+    final name = (fields['name'] ?? '').replaceAll(_tags, '');
+    final description = (fields['desc'] ?? '').replaceAll(_tags, '');
+    final group = _group(id);
+    if (fields['_csrf_token'] == null ||
+        fields['_csrf_token'] != _formTokens[session] ||
+        fields['store'] != '1' ||
+        name.trim().isEmpty ||
+        (id != null && group == null)) {
+      _feedback[session] = 2;
+    } else if (group == null) {
+      groups.add(FakeMyGroup(nextId++, name, description: description));
+    } else {
+      group
+        ..name = name
+        ..description = description;
+    }
+    if (dropping.contains('save')) throw _dropped(options);
+    return ResponseBody.fromString(
+      '',
+      302,
+      headers: {
+        'location': ['$fakeMyGroupsPath&function=main'],
+      },
+    );
+  }
+
+  static final _tags = RegExp(r'<[^>]*>');
+
+  /// The connection dropping after a request went out and was handled.
+  static Object _dropped(RequestOptions options) =>
+      DioException.connectionError(
+        requestOptions: options,
+        reason: 'Connection closed before full header was received',
+        error: const SocketException('Connection reset by peer'),
+      );
 
   ResponseBody _picker(RequestOptions options) {
     final data = options.data;
@@ -279,6 +378,44 @@ $rows</div>
 	</div>
 </div>
 $script</body>
+</html>
+''';
+  }
+
+  /// The form for a new own group with the token [token]; with [group], the
+  /// edit form of that group, its name and description escaped in their
+  /// `value` (in the shape of the library's `addedit.html`).
+  String _formPage(String token, FakeMyGroup? group) {
+    const escape = HtmlEscape(HtmlEscapeMode.attribute);
+    final name = escape.convert(group?.name ?? '');
+    final description = escape.convert(group?.description ?? '');
+    return '''
+<!DOCTYPE html>
+<html lang="nl">
+<head><meta charset="utf-8"><title>Profiel - Smartschool</title></head>
+<body>
+<div id="smscMainBlockContainer">
+	<div id="smscMainBlockContainerContent">
+		<div class="smscSettings">
+			<a class="smscSettings_backbutton" href="$fakeMyGroupsPath"></a>
+			<div class="smscSettings_mainTitle">${group == null ? 'Nieuwe groep' : 'Groep wijzigen'}</div>
+		</div>
+		<form name="form" action="" method="post">
+<input type="hidden" name="_csrf_token" value="$token" />
+<input type="hidden" name="store" value="1" />
+			<div class="smsc-form__row">
+				<label for="name">Naam</label>
+				<input type="text" name="name" id="name" value="$name" />
+			</div>
+			<div class="smsc-form__row">
+				<label for="desc">Omschrijving</label>
+				<input type="text" name="desc" id="desc" value="$description" />
+			</div>
+			<input type="submit" value="Opslaan" />
+		</form>
+	</div>
+</div>
+</body>
 </html>
 ''';
   }
