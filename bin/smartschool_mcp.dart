@@ -37,6 +37,7 @@ import 'package:smartschool_mcp/src/tools/list_intradesk_folder_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_lesfiche_labels_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_lesfiches_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_messages_tool.dart';
+import 'package:smartschool_mcp/src/tools/list_my_groups_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_planned_lesson_clusters_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_planner_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_skore_evaluations_tool.dart';
@@ -54,6 +55,7 @@ import 'package:smartschool_mcp/src/tools/read_intradesk_file_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_lesfiche_attachment_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_lesfiche_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_message_tool.dart';
+import 'package:smartschool_mcp/src/tools/read_my_group_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_planned_element_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_skore_feedback_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_skore_gradebook_tool.dart';
@@ -162,6 +164,9 @@ Future<void> _serve(ServerOptions options) async {
           replyToMessageTool(session),
           searchRecipientsTool(session),
           sendMessageTool(session),
+          // The user's own mail groups, "Mijn groepen" (#231).
+          listMyGroupsTool(session),
+          readMyGroupTool(session),
           searchIntradeskTool(session, intradeskIndex),
           listIntradeskFolderTool(session, intradeskIndex),
           readIntradeskFileTool(session, intradeskIndex),

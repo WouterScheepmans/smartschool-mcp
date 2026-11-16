@@ -33,7 +33,7 @@ offered only when the switch is on; every switch is off by default (see
 | Area | What it covers | Switch | Tools |
 | --- | --- | --- | --- |
 | [Status](docs/tools/status.md) | Whether the connection works, or what to fix | | 1 |
-| [Messages](docs/tools/messages.md) | Read, search, archive, mark, flag and trash messages; reply and send | | 11 |
+| [Messages](docs/tools/messages.md) | Read, search, archive, mark, flag and trash messages; reply and send, also to your own groups | | 13 |
 | [Intradesk](docs/tools/intradesk.md) | Find, read and save files; add folders, weblinks and files; trash | | 8 |
 | [Planner](docs/tools/planner.md) | Read planners; plan lessons, tests, tasks and lesson clusters of year plans in your own | | 12 |
 | [Lesfiches](docs/tools/lesfiches.md) | Read, make, copy, change, label, trash, restore and plan your lesfiches, save lessons as lesfiches, and build year plans from them | | 26 |

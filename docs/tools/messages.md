@@ -3,7 +3,8 @@
 [Back to the overview](../../README.md)
 
 Smartschool's messages: the inbox, the sent box, the archive and the folders
-you made in Smartschool ("Map toevoegen"). For everyone, without a switch.
+you made in Smartschool ("Map toevoegen"), and your own groups of people to
+send messages to ("Mijn groepen"). For everyone, without a switch.
 Tools that change something follow the
 [shared rules](../../README.md#changes-and-approval).
 
@@ -20,6 +21,8 @@ Tools that change something follow the
 | [`reply_to_message`](#reply_to_message) | Sends a reply, optionally with files | Yes, asks approval |
 | [`search_recipients`](#search_recipients) | Finds the users and groups a new message can go to | No |
 | [`send_message`](#send_message) | Sends a new message, optionally with files | Yes, asks approval |
+| [`list_my_groups`](#list_my_groups) | Lists your own groups ("Mijn groepen"), as `send_message` takes them | No |
+| [`read_my_group`](#read_my_group) | Lists who is in one of your own groups | No |
 
 ## Tools
 
@@ -106,6 +109,21 @@ never picks one. A person of another school of the school group can be a
 recipient too, once `search_recipients` found them. Asks for approval; Claude looks up every recipient and
 shows you the recipients, the subject, the text and every file with its size
 first. A message is [never sent twice](../../README.md#changes-and-approval).
+
+### `list_my_groups`
+
+Lists your own groups: the groups of people you keep in your Smartschool
+profile, under "Mijn groepen". A message to one goes to all its members.
+Each group is listed as `send_message` takes it, like `Projectwerk (group
+298)`, with its description after a `|`, so Claude can send a message to it
+straight away. You make and change the groups in Smartschool.
+
+### `read_my_group`
+
+Lists who is in one of your own groups, by its id from `list_my_groups`:
+each member by name (last name first, as Smartschool shows them) with their
+user id, and a person of another school of the school group with their
+school.
 
 ## How it works
 
@@ -274,6 +292,42 @@ and text; the result names them, and `read_message` lists them on the sent
 message. A file Smartschool's upload step refuses stops the send before the
 submit, with Smartschool's reason: nothing was sent.
 
+### How `list_my_groups` and `read_my_group` work
+
+They read "Mijn groepen" with the library's `MyGroupsService`
+(flutter_smartschool 0.4.6, yvanvds/dartschool#251). `list_my_groups` reads
+the list of own groups (`list()`), sorted by name as Smartschool lists them.
+The search of the compose form finds an own group by its name, as a group,
+with the group's id as its `(group <id>)` and its description after the `|`
+(seen live on 2026-11-16). So a line of `list_my_groups` names the group as
+`search_recipients` does, and `send_message` takes what comes before the
+`|`. `search_recipients` does not tell an own group from a group of the
+school; `list_my_groups` does, and `read_my_group` shows who is in it.
+
+`read_my_group` reads the list first, and refuses an id that is not one of
+the user's groups with the groups there are, before it reads any members.
+Then `members()`: the group's members page and, in that page's session, the
+selection Smartschool's member picker has for the group, which gives each
+member's platform and school. A group deleted in between is refused the same
+way. A member on another platform than the own school's is a person of
+another school of the school group, listed as `search_recipients` lists one:
+`Name (user 2231, platform 5810) | school: ...`. The own platform is that of
+the compose form (`getCurrentUserAsRecipient`, the platform the library
+compares with for `MessageSearchUser.otherSchool`), so for a group with
+members `read_my_group` loads a compose form and leaves it unused, as
+`search_recipients` does. When Smartschool does not open the compose form to
+the account, every member is listed as one of the own school. A member that
+is not a person (a class or a group added with the picker's tabs, not seen)
+is listed as such.
+
+An answer the library cannot use (`SmartschoolMyGroupsError`: another
+status, another page, a members page and a selection that do not list the
+same members) is an error that says to try again, and to look at the groups
+in Smartschool when it keeps happening; the library's message, which names
+a group by its id only, goes to the log. The picker answering with an HTML
+page is an unexpected problem, as for every tool. The members of a group are
+mostly pupils: the log names no group or member, only ids and error types.
+
 ### Helpers and tests
 
 Message helpers for later tools live in `lib/src/messages/`: `MessageBox`
@@ -287,8 +341,10 @@ message text Claude writes (`markdownToHtml`, which escapes all HTML) in
 (`searchRecipients`, `RecipientRequest`) in `recipient_search.dart`, the
 filters and date-range arguments in `message_filter.dart`, the output lines
 in `message_format.dart`, full-text matching and snippets (`SearchQuery`) in
-`message_search.dart` and the message text cache (`MessageTextCache`) in
-`message_cache.dart`.
+`message_search.dart`, the message text cache (`MessageTextCache`) in
+`message_cache.dart`, and the user's own groups (`withMyGroups`, which turns
+the errors of `MyGroupsService` into tool errors, `findMyGroup` and the
+output lines) in `my_groups.dart`.
 
 The tools that change messages named by id share their `message_ids`
 argument (`messageIdsSchema`, `messageIdsArgument`) and, for a change made
@@ -313,4 +369,11 @@ loaded in (an upload into it from another session fails the test), and
 whose submit sends the files of that directory with the message. Its folder
 tree (`requestmovelist`) holds the archive and the folders a test adds with
 `addFolder` (in the inbox, the sent box or another folder), each listed,
-read and changed as the archive is.
+read and changed as the archive is. Its search also finds the own groups of
+the fake "Mijn groepen" (`test/support/fake_my_groups.dart`), which serves
+the list of own groups, a group's members page and the member picker's
+selection in the shapes of the library's fixtures, and sets that selection
+per session when a members page is loaded, as Smartschool does. The tests
+of `list_my_groups` and `read_my_group` (`test/my_groups_tools_test.dart`)
+use it with made-up groups and people, and check that the log names
+neither.

@@ -12,6 +12,7 @@ import 'fake_goals.dart';
 import 'fake_intradesk.dart';
 import 'fake_lvs.dart';
 import 'fake_messages.dart';
+import 'fake_my_groups.dart';
 import 'fake_planner.dart';
 import 'fake_presence.dart';
 import 'fake_skore.dart';
@@ -23,6 +24,7 @@ export 'fake_goals.dart';
 export 'fake_intradesk.dart';
 export 'fake_lvs.dart';
 export 'fake_messages.dart';
+export 'fake_my_groups.dart';
 export 'fake_planner.dart';
 export 'fake_presence.dart';
 export 'fake_skore.dart';
@@ -138,7 +140,12 @@ class FakeSmartschool implements HttpClientAdapter {
   late final FakeMailbox mailbox = FakeMailbox(
     owner: fakeDisplayName,
     uploads: uploads,
-  );
+  )..ownGroups = () => myGroups.recipients;
+
+  /// The user's own mail groups ("Mijn groepen" in the profile, #231),
+  /// served to logged-in requests; the search of [mailbox] finds them as
+  /// groups.
+  final FakeMyGroups myGroups = FakeMyGroups();
 
   /// The Intradesk module, served to logged-in requests.
   late final FakeIntradesk intradesk = FakeIntradesk(uploads: uploads);
@@ -286,6 +293,7 @@ class FakeSmartschool implements HttpClientAdapter {
       return lvs.respond(options) ??
           uploads.respond(options) ??
           mailbox.respond(options) ??
+          myGroups.respond(options) ??
           intradesk.respond(options) ??
           yearPlans.respond(options) ??
           planner.respond(options) ??
@@ -317,6 +325,7 @@ class FakeSmartschool implements HttpClientAdapter {
     return lvs.respond(options) ??
         uploads.respond(options) ??
         mailbox.respond(options, cancelled: cancelled) ??
+        myGroups.respond(options) ??
         intradesk.respond(options, cancelled: cancelled) ??
         yearPlans.respond(options) ??
         planner.respond(options, cancelled: cancelled) ??

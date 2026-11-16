@@ -85,6 +85,14 @@
       "description": "Verstuurt een nieuw bericht aan personen of groepen, eventueel met bestanden van je pc als bijlage, pas na jouw bevestiging van de ontvangers, het onderwerp, de tekst en de bijlagen."
     },
     {
+      "name": "list_my_groups",
+      "description": "Toont je eigen groepen uit \"Mijn groepen\" in je profiel, zodat Claude er een bericht naar kan sturen."
+    },
+    {
+      "name": "read_my_group",
+      "description": "Toont wie er in een van je eigen groepen zit."
+    },
+    {
       "name": "search_intradesk",
       "description": "Zoekt mappen, bestanden en weblinks op Intradesk op naam."
     },

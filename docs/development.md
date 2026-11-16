@@ -101,7 +101,10 @@ smallest PDF and Word file above 5 KB on Intradesk and the first attachment
 of a read message (twice, to see the second copy get a name of its own) into
 a temporary download folder that is deleted afterwards, checks their sizes
 and first bytes, and prints extensions, sizes and timings only; run it with
-`--name save_intradesk_file`.
+`--name save_intradesk_file`. The own groups test only reads: it lists your
+own groups ("Mijn groepen") and reads the members of the first one, with
+your own cookie cache, and prints counts only, never a name (the members
+are mostly pupils); run it with `--name list_my_groups`.
 
 ## Pupil tracking system (LVS) data
 

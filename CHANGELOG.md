@@ -8,6 +8,13 @@ pubspec.yaml. The release workflow puts the section at the top of the release
 notes, under "## Nieuw in deze versie" (tool/release_notes.dart), and a server
 of an older version shows it when it announces the update. -->
 
+## 0.10.0
+
+- Berichten: Claude toont je eigen groepen uit "Mijn groepen" in je
+  Smartschool-profiel, en wie er in een groep zit. Vraag je een bericht aan
+  "mijn groep Projectwerk", dan weet Claude zo welke groep je bedoelt en naar
+  wie het bericht gaat.
+
 ## 0.9.0
 
 - Berichten: Claude vindt nu ook mensen van de andere scholen van je
