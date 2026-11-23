@@ -130,6 +130,14 @@ void main() {
       'add_intradesk_weblink',
       'upload_intradesk_files',
       'trash_intradesk_items',
+      'list_courses',
+      'list_course_documents',
+      'create_course_folder',
+      'upload_course_documents',
+      'list_upload_zones',
+      'create_upload_zone',
+      'list_course_news',
+      'post_course_news',
       'search_planners',
       'list_planner',
       'read_planned_element',
@@ -207,6 +215,10 @@ void main() {
       // The user's own mail groups, "Mijn groepen" (#231).
       'list_my_groups',
       'read_my_group',
+      'list_courses',
+      'list_course_documents',
+      'list_upload_zones',
+      'list_course_news',
       'search_planners',
       'list_planner',
       'read_planned_element',
@@ -788,7 +800,7 @@ void main() {
     await server.initialize();
 
     final tools = (await server.request('tools/list'))['tools'] as List;
-    expect(tools, hasLength(97));
+    expect(tools, hasLength(105));
     expect(
       [for (final tool in tools) (tool as Map)['name']],
       containsAll([
@@ -862,7 +874,7 @@ void main() {
         await server.initialize();
 
         final tools = await listTools(server);
-        expect(tools, hasLength(79));
+        expect(tools, hasLength(87));
         expect([
           for (final tool in tools) tool['name'],
         ], everyElement(isNot(isIn(skoreTools))));
@@ -900,8 +912,8 @@ void main() {
       await server.initialize();
 
       final tools = await listTools(server);
-      expect(tools, hasLength(87));
-      expect([for (final tool in tools.skip(79)) tool['name']], skoreTools);
+      expect(tools, hasLength(95));
+      expect([for (final tool in tools.skip(87)) tool['name']], skoreTools);
       final byName = {for (final tool in tools) tool['name']: tool};
       for (final name in skoreReads) {
         expect(byName[name]!['annotations'], {
@@ -1094,7 +1106,7 @@ void main() {
         await server.initialize();
 
         final tools = await listTools(server);
-        expect(tools, hasLength(79));
+        expect(tools, hasLength(87));
         expect([
           for (final tool in tools) tool['name'],
         ], everyElement(isNot(isIn(presenceTools))));
@@ -1133,8 +1145,8 @@ void main() {
       await server.initialize();
 
       final tools = await listTools(server);
-      expect(tools, hasLength(83));
-      expect([for (final tool in tools.skip(79)) tool['name']], presenceTools);
+      expect(tools, hasLength(91));
+      expect([for (final tool in tools.skip(87)) tool['name']], presenceTools);
       final byName = {for (final tool in tools) tool['name']: tool};
       for (final name in presenceReads) {
         expect(byName[name]!['annotations'], {
@@ -1330,10 +1342,10 @@ void main() {
       await server.initialize();
 
       final tools = await listTools(server);
-      expect(tools, hasLength(91));
-      expect([for (final tool in tools.skip(87)) tool['name']], presenceTools);
+      expect(tools, hasLength(99));
+      expect([for (final tool in tools.skip(95)) tool['name']], presenceTools);
       expect([
-        for (final tool in tools.skip(79).take(8)) tool['name'],
+        for (final tool in tools.skip(87).take(8)) tool['name'],
       ], _teachersAsSubject.toList());
 
       await server.stop();
@@ -1369,7 +1381,7 @@ void main() {
         await server.initialize();
 
         final tools = await listTools(server);
-        expect(tools, hasLength(79));
+        expect(tools, hasLength(87));
         expect([
           for (final tool in tools) tool['name'],
         ], everyElement(isNot(isIn(lvsTools))));
@@ -1421,8 +1433,8 @@ void main() {
       await server.initialize();
 
       final tools = await listTools(server);
-      expect(tools, hasLength(85));
-      expect([for (final tool in tools.skip(79)) tool['name']], lvsTools);
+      expect(tools, hasLength(93));
+      expect([for (final tool in tools.skip(87)) tool['name']], lvsTools);
       final byName = {for (final tool in tools) tool['name']: tool};
       for (final name in lvsTools) {
         expect(byName[name]!['annotations'], {
@@ -1606,10 +1618,10 @@ void main() {
       await server.initialize();
 
       final tools = await listTools(server);
-      expect(tools, hasLength(97));
-      expect([for (final tool in tools.skip(91)) tool['name']], lvsTools);
+      expect(tools, hasLength(105));
+      expect([for (final tool in tools.skip(99)) tool['name']], lvsTools);
       expect(
-        [for (final tool in tools.skip(87).take(4)) tool['name']],
+        [for (final tool in tools.skip(95).take(4)) tool['name']],
         [
           'list_presence_classes',
           'list_class_presences',
@@ -1618,7 +1630,7 @@ void main() {
         ],
       );
       expect([
-        for (final tool in tools.skip(79).take(8)) tool['name'],
+        for (final tool in tools.skip(87).take(8)) tool['name'],
       ], _teachersAsSubject.toList());
 
       await server.stop();

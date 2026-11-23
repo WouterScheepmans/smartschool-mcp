@@ -22,11 +22,13 @@ import 'package:smartschool_mcp/src/tools/add_my_group_members_tool.dart';
 import 'package:smartschool_mcp/src/tools/add_to_lesson_cluster_tool.dart';
 import 'package:smartschool_mcp/src/tools/archive_messages_tool.dart';
 import 'package:smartschool_mcp/src/tools/clear_lesson_tool.dart';
+import 'package:smartschool_mcp/src/tools/create_course_folder_tool.dart';
 import 'package:smartschool_mcp/src/tools/create_intradesk_folder_tool.dart';
 import 'package:smartschool_mcp/src/tools/create_lesfiche_label_tool.dart';
 import 'package:smartschool_mcp/src/tools/create_lesfiche_tool.dart';
 import 'package:smartschool_mcp/src/tools/create_my_group_tool.dart';
 import 'package:smartschool_mcp/src/tools/create_skore_evaluation_tool.dart';
+import 'package:smartschool_mcp/src/tools/create_upload_zone_tool.dart';
 import 'package:smartschool_mcp/src/tools/create_year_plan_tool.dart';
 import 'package:smartschool_mcp/src/tools/delete_my_group_tool.dart';
 import 'package:smartschool_mcp/src/tools/delete_year_plan_tool.dart';
@@ -36,6 +38,9 @@ import 'package:smartschool_mcp/src/tools/edit_my_group_tool.dart';
 import 'package:smartschool_mcp/src/tools/edit_planned_element_tool.dart';
 import 'package:smartschool_mcp/src/tools/flag_messages_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_class_assignments_tool.dart';
+import 'package:smartschool_mcp/src/tools/list_course_documents_tool.dart';
+import 'package:smartschool_mcp/src/tools/list_course_news_tool.dart';
+import 'package:smartschool_mcp/src/tools/list_courses_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_curricula_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_intradesk_folder_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_lesfiche_labels_tool.dart';
@@ -48,12 +53,14 @@ import 'package:smartschool_mcp/src/tools/list_skore_evaluations_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_skore_gradebooks_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_skore_projects_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_trashed_lesfiches_tool.dart';
+import 'package:smartschool_mcp/src/tools/list_upload_zones_tool.dart';
 import 'package:smartschool_mcp/src/tools/list_year_plans_tool.dart';
 import 'package:smartschool_mcp/src/tools/mark_messages_tool.dart';
 import 'package:smartschool_mcp/src/tools/plan_assignment_tool.dart';
 import 'package:smartschool_mcp/src/tools/plan_lesfiche_tool.dart';
 import 'package:smartschool_mcp/src/tools/plan_lesson_cluster_tool.dart';
 import 'package:smartschool_mcp/src/tools/plan_lesson_tool.dart';
+import 'package:smartschool_mcp/src/tools/post_course_news_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_curriculum_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_intradesk_file_tool.dart';
 import 'package:smartschool_mcp/src/tools/read_lesfiche_attachment_tool.dart';
@@ -93,6 +100,7 @@ import 'package:smartschool_mcp/src/tools/trash_intradesk_items_tool.dart';
 import 'package:smartschool_mcp/src/tools/trash_lesfiches_tool.dart';
 import 'package:smartschool_mcp/src/tools/trash_messages_tool.dart';
 import 'package:smartschool_mcp/src/tools/trash_planned_lesson_cluster_tool.dart';
+import 'package:smartschool_mcp/src/tools/upload_course_documents_tool.dart';
 import 'package:smartschool_mcp/src/tools/upload_intradesk_files_tool.dart';
 import 'package:smartschool_mcp/src/update_check.dart';
 import 'package:smartschool_mcp/src/version.dart';
@@ -186,6 +194,16 @@ Future<void> _serve(ServerOptions options) async {
           addIntradeskWeblinkTool(session, intradeskIndex),
           uploadIntradeskFilesTool(session, intradeskIndex),
           trashIntradeskItemsTool(session, intradeskIndex),
+          // The management of a course: its documents, upload zones and
+          // news (dartschool's `CourseService`).
+          listCoursesTool(session),
+          listCourseDocumentsTool(session),
+          createCourseFolderTool(session),
+          uploadCourseDocumentsTool(session),
+          listUploadZonesTool(session),
+          createUploadZoneTool(session),
+          listCourseNewsTool(session),
+          postCourseNewsTool(session),
           searchPlannersTool(session),
           listPlannerTool(session),
           readPlannedElementTool(session),

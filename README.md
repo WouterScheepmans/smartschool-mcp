@@ -35,6 +35,7 @@ offered only when the switch is on; every switch is off by default (see
 | [Status](docs/tools/status.md) | Whether the connection works, or what to fix | | 1 |
 | [Messages](docs/tools/messages.md) | Read, search, archive, mark, flag and trash messages; reply and send, also to your own groups, which you make, rename, fill and delete | | 18 |
 | [Intradesk](docs/tools/intradesk.md) | Find, read and save files; add folders, weblinks and files; trash | | 8 |
+| [Courses](docs/tools/courses.md) | Your courses: their documents (folders, uploaded files), upload zones and news | | 8 |
 | [Planner](docs/tools/planner.md) | Read planners; plan lessons, tests, tasks and lesson clusters of year plans in your own | | 12 |
 | [Lesfiches](docs/tools/lesfiches.md) | Read, make, copy, change, label, trash, restore and plan your lesfiches, save lessons as lesfiches, and build year plans from them | | 26 |
 | [Learning goals](docs/tools/goals.md) | The curricula of the goal selector (also the GO! Navigator) and their goals, to set on lesfiches and lessons; read only | | 2 |

@@ -12,6 +12,10 @@ Je vraagt het gewoon in een gesprek:
   lezen. Een nieuwe map, een weblink of bestanden van je pc in een map
   zetten, en mappen, bestanden of weblinks naar de prullenbak van Intradesk
   verplaatsen. Telkens pas nadat jij het goedgekeurd hebt.
+- **Vakken:** de documenten van je vakken bekijken, er mappen maken en
+  bestanden van je pc in zetten, uploadzones bekijken en maken waarin
+  leerlingen hun werk indienen, en het vaknieuws lezen en er een bericht in
+  plaatsen, met opmaak. Telkens pas nadat jij het goedgekeurd hebt.
 - **Planner:** je eigen planner bekijken, en die van klassen, collega's en
   lokalen: lessen, toetsen en taken, en lege lesuren. Per dag zien welke
   toetsen en taken een klas al heeft, om een moment voor een nieuwe toets te

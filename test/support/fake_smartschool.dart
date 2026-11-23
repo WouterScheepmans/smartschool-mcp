@@ -8,6 +8,7 @@ import 'package:smartschool_mcp/src/session.dart';
 import 'package:smartschool_mcp/src/settings.dart';
 import 'package:test/test.dart';
 
+import 'fake_courses.dart';
 import 'fake_goals.dart';
 import 'fake_intradesk.dart';
 import 'fake_lvs.dart';
@@ -160,6 +161,10 @@ class FakeSmartschool implements HttpClientAdapter {
   /// The Intradesk module, served to logged-in requests.
   late final FakeIntradesk intradesk = FakeIntradesk(uploads: uploads);
 
+  /// The course modules (documents, upload zones, news) of the courses of
+  /// the course menu (dartschool's `CourseService`), served to logged-in requests.
+  late final FakeCourses courses = FakeCourses(uploads: uploads);
+
   /// Smartschool's upload step, shared by the modules that take files,
   /// served to logged-in requests.
   final FakeUploads uploads = FakeUploads();
@@ -305,6 +310,7 @@ class FakeSmartschool implements HttpClientAdapter {
           mailbox.respond(options) ??
           myGroups.respond(options) ??
           intradesk.respond(options) ??
+          courses.respond(options) ??
           yearPlans.respond(options) ??
           planner.respond(options) ??
           goals.respond(options) ??
@@ -337,6 +343,7 @@ class FakeSmartschool implements HttpClientAdapter {
         mailbox.respond(options, cancelled: cancelled) ??
         myGroups.respond(options) ??
         intradesk.respond(options, cancelled: cancelled) ??
+        courses.respond(options) ??
         yearPlans.respond(options) ??
         planner.respond(options, cancelled: cancelled) ??
         goals.respond(options) ??

@@ -340,7 +340,7 @@ void main() {
       documented.addAll(headings);
     }
 
-    expect(documented, hasLength(97));
+    expect(documented, hasLength(105));
     expect([
       for (final tool in manifest['tools'] as List) (tool as Map)['name'],
     ], documented);
