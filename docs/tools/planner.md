@@ -68,7 +68,8 @@ test.
 ### `plan_lesson`
 
 Fills an empty lesson hour of your own planner with a lesson: a name, and
-optionally public info (what pupils see) and private info, as plain text.
+optionally public info (what pupils see) and private info, as plain text or
+with formatting (see [Formatting in the info](lesfiches.md#formatting-in-the-info)).
 Pupils of the hour's classes see the name and public info at once. Asks for
 approval; Claude shows you every hour (date and time, class, course, name and
 info) first, and one confirmation for a week's list is enough. The lesson
@@ -194,7 +195,9 @@ planner, or fails too, the planner's error stays.
 ### How `read_planned_element` works
 
 It reads the element by its id: what its list line says, plus its public and
-private info as plain text (through `htmlToText`, never raw HTML), its
+private info as text with their formatting (through `htmlToText` with
+`markup`, never raw HTML; see [Formatting in the
+info](lesfiches.md#formatting-in-the-info)), its
 labels, its attachments and weblinks (one line each, with when pupils see
 it, counted from the lesson or the assignment), and for an assignment from
 when pupils see it, whether it was announced and its status. Colleagues who
@@ -235,9 +238,9 @@ every weight was 0). The school's assignment types are read once per session
 
 The `hour` is an id `planned-placeholders/…` from `list_planner` with `me`;
 the lesson takes a `name`, and optionally `public_info` and `private_info`,
-written as plain text (the library's `planLesson`, dartschool#87). The
+written as text with formatting (the library's `planLesson`, dartschool#87). The
 server turns the text into the HTML the planner's own editor makes
-(`plainTextToHtml`: a `<p>` per paragraph, `<br />` per line break),
+(`infoMarkdownToHtml`: a `<p>` per paragraph, `<br />` per line break, lists, bold, italic, underline and colours),
 escaping `&`, `<` and `>`. Quotes stay as they are: they are not markup in
 text content, and the planner keeps them as quotes (it answers `&quot;` and
 `&#39;` as `"` and `'`, seen live in #72). The HTML sent is then the info as
@@ -256,7 +259,7 @@ once.
 
 ### How `edit_planned_element` works
 
-It changes `name`, `public_info` and/or `private_info` (plain text, as
+It changes `name`, `public_info` and/or `private_info` (text with formatting, as
 `plan_lesson`), and for a lesson `goals` (`{id, leerplanId, type}` as
 `read_curriculum` shows them), by the element's id (`renameElement`,
 `changePublicInfo`, `changePrivateInfo`, `changeGoals` of dartschool#226, in
@@ -291,7 +294,7 @@ It plans the assignment in `hour` (an empty lesson hour or a lesson from
 (dartschool#89): of a `type`, by abbreviation or name, matched against the
 school's types (read once per session; one that matches none is an error
 that lists them), with a `name` and optionally `public_info` and
-`private_info` (plain text, as `plan_lesson`). The server reads the hour's
+`private_info` (text with formatting, as `plan_lesson`). The server reads the hour's
 detail and takes from it the classes (all of them, or those `classes` names,
 by name or planner id; a class that is not the hour's is an error), the
 course (the first), the rooms and the period: the assignment is due at the
@@ -410,7 +413,7 @@ elements per day (`elementsByDay`), an element's detail
 `list_planned_lesson_clusters`.
 
 In `planner_writes.dart`, for the tools that change the planner: the info
-text Claude writes as HTML (`plainTextToHtml`), the `hour` argument
+text Claude writes as HTML (`infoMarkdownToHtml`), the `hour` argument
 (`emptyHourArgument`), the fill of an empty lesson hour with its result
 (`fillLessonHour`, which takes the library call that fills, so a lesfiche
 can be planned the same way, and a lesson replaced by one), the goals of

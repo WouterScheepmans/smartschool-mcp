@@ -300,6 +300,39 @@ void main() {
       ]);
     });
 
+    test('writes formatting in the info as the editor\'s HTML, and shows it '
+        'back in the same form', () async {
+      const info =
+          'Breng **je boek** mee:\n'
+          '\n'
+          '- {red}een ++pen++{/}\n'
+          '- *papier*';
+
+      final text = await edit({'public_info': info, 'private_info': '<b>x'});
+
+      expect(bodiesOf('$_lessonPath/change-public-info'), [
+        {
+          'newPublicInfo':
+              '<p>Breng <strong>je boek</strong> mee:</p>'
+              '<ul><li><span style="color: #e03e2d;">een <u>pen</u></span>'
+              '</li><li><em>papier</em></li></ul>',
+        },
+      ]);
+      expect(bodiesOf('$_lessonPath/change-private-info'), [
+        {'newPrivateInfo': '<p>&lt;b&gt;x</p>'},
+      ], reason: 'HTML is text, never markup');
+      expect(
+        text,
+        endsWith(
+          'Public info (what pupils see):\n'
+          '$info\n'
+          '\n'
+          'Private info (hidden from pupils):\n'
+          '<b>x',
+        ),
+      );
+    });
+
     test('an empty list of courses removes them, without reading the course '
         'list', () async {
       await openSession();

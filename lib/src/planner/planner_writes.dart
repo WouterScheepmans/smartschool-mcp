@@ -36,34 +36,22 @@ const plannerListLagNote =
     'For a few seconds after a change list_planner can still show the old '
     'state; read_planned_element shows the new state at once.';
 
-/// [text], plain text that Claude writes for an info of the planner (what
-/// pupils see, or the private info), as the simple HTML the planner's own
-/// editor makes: one `<p>` per paragraph (a blank line between two), and
-/// `<br />` for a single line break.
-///
-/// `&`, `<` and `>` are escaped, so HTML in [text] shows as text and never
-/// becomes markup. Quotes are left as they are: they are not markup in text
-/// content, and the planner keeps them as quotes (it answers `&quot;` and
-/// `&#39;` as `"` and `'`, seen live). So the HTML is the info as the
-/// planner keeps it. White space around a paragraph or a line is left out.
-/// Text that is empty or white space only is `""`: no info.
-String plainTextToHtml(String text) {
-  final paragraphs = text
-      .replaceAll('\r\n', '\n')
-      .replaceAll('\r', '\n')
-      .split(RegExp(r'\n[ \t]*\n'));
-  return [
-    for (final paragraph in paragraphs)
-      if (paragraph.trim() case final lines when lines.isNotEmpty)
-        '<p>${lines.split('\n').map(_line).join('<br />')}</p>',
-  ].join();
-}
-
-String _line(String line) => line
-    .trim()
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
+/// How Claude writes an info of the planner or the Lesfiches module (what
+/// pupils see, or the private info), for the descriptions of the tools that
+/// write one: the Markdown that `infoMarkdownToHtml` converts, which
+/// `read_lesfiche` and `read_planned_element` show back (`htmlToText` with
+/// `markup`).
+const infoMarkupNote =
+    'Write the info as plain text or simple Markdown, which becomes the '
+    'formatting of the web editor: a blank line between paragraphs; lines '
+    'starting with "- " or "1. " for a bulleted or numbered list; **bold**, '
+    '*italic* and ++underlined++; and {red}text{/} for coloured text, with '
+    'one of the colours red, dark red, orange, yellow, green, dark green, '
+    'blue, dark blue, purple, dark purple, gray, dark gray and black, or a '
+    'hex code like {#1a7f37}text{/} (colours do not nest, but can hold bold '
+    'and the like). HTML in it is not interpreted: it shows as text. '
+    'read_lesfiche and read_planned_element show an info in this same form, '
+    'so pass it back as shown to keep its formatting.';
 
 /// Whether [a] and [b] are the same info of a planned element, as
 /// `PlannerService.changePublicInfo` and `changePrivateInfo` compare an info

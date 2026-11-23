@@ -53,7 +53,8 @@ lists the labels there are. At most 200 lines.
 Reads one lesfiche in full: its kind, name, icon, labels and courses,
 whether it is visible in the module, its weblinks and attachments (each with
 when pupils see it), its learning goals (see [Learning goals](goals.md)) and
-its public and private info. A lesfiche in the trash
+its public and private info, with their formatting (see [Formatting in the
+info](#formatting-in-the-info)). A lesfiche in the trash
 is still read.
 
 ### `read_lesfiche_attachment`
@@ -288,8 +289,10 @@ course list cannot be read, `SmartschoolLessonContentCourseListError.items`
 holds the detail, and only the number of courses is shown, with a note),
 visible or hidden in the module, the weblinks (name, address, icon, when
 pupils see it, id) and the attachments (numbered, with file name, size,
-type, when pupils see it, id); then the public and private info as plain
-text (through `htmlToText`, as `read_planned_element`). When pupils see a
+type, when pupils see it, id); then the public and private info as text
+with their formatting (through `htmlToText` with `markup`, as
+`read_planned_element`; see [Formatting in the
+info](#formatting-in-the-info)). When pupils see a
 weblink or an attachment (`LessonContentVisibility`) is worded from the
 lesson the lesfiche is planned in: always, never, from its start, from its
 end, or a number of days after its end; an option the library does not
@@ -305,6 +308,40 @@ both say to take the id and the kind from `list_lesfiches`. A lesfiche in
 the trash is still answered, as live. Its description points to
 `edit_lesfiche` and the tools that change the weblinks and attachments, by
 the ids it shows, and to `trash_lesfiches`.
+
+### Formatting in the info
+
+The public and private info of a lesfiche, and of a lesson or assignment in
+the planner, is HTML, made by the web editor. Claude writes it as plain text
+or simple Markdown, and the server turns it into that HTML
+(`infoMarkdownToHtml` in `lib/src/messages/markdown_to_html.dart`):
+
+| Claude writes | Becomes |
+| --- | --- |
+| a blank line between paragraphs, a line break | `<p>` per paragraph, `<br />` |
+| lines starting with `- ` or `1. ` | a bulleted (`<ul>`) or numbered (`<ol>`) list |
+| `**bold**`, `*italic*`, `++underlined++` | `<strong>`, `<em>`, `<u>` |
+| `{red}text{/}`, `{#1a7f37}text{/}` | `<span style="color: #e03e2d;">text</span>` |
+| `[text](https://...)` | a link (`http`, `https` and `mailto` only) |
+
+The colours by name are those of the editor's palette (`infoColors`): red,
+dark red, orange, yellow, green, dark green, blue, dark blue, purple, dark
+purple, gray, dark gray and black; any other colour is a hex code (`#rrggbb`
+or `#rgb`). A colour that is neither stays as written. Colours do not nest
+(the first `{/}` ends a colour), but hold and are held by bold, italic and
+underline. Everything else is escaped: HTML in the text shows as text, so
+Claude cannot add tags, attributes, styles or scripts; only the converter
+writes them, and a colour only as a checked hex code.
+
+The read tools show an info the other way round, in the same Markdown
+(`htmlToText` with `markup`): `<strong>`, `<b>` and a bold `font-weight` as
+`**bold**`, `<em>`, `<i>` and `font-style: italic` as `*italic*`, `<u>` and
+`text-decoration: underline` as `++underlined++`, and a `color` style or
+`<font color>` as `{name}text{/}` for a colour of the palette, `{#rrggbb}`
+for another. So Claude passes an info back as it was shown to keep its
+formatting. What the Markdown has no form for (headings, tables, nested
+lists, background colours, font sizes) is shown as text without that
+formatting, and is lost when the info is written back.
 
 ### How `read_lesfiche_attachment` works
 
@@ -363,7 +400,7 @@ library's `LessonContentService.createLesson` or `createAssignment`
 default, or `assignment` with `assignment_type`, one of the school's types
 by abbreviation or name, matched as `plan_assignment` matches its `type`),
 and optionally `labels` (see [How labels are set](#how-labels-are-set)),
-`public_info` and `private_info` (plain text, as
+`public_info` and `private_info` (text with [formatting](#formatting-in-the-info), as
 `plan_lesson`), `courses` (each by its name as the tools show it, or by its
 id, found in the school's course list: one the list does not have is an
 error that lists the names, and a name two courses have one that gives
@@ -422,7 +459,7 @@ It changes one lesfiche of the user's own library (`lesfiche` and `type`, as
 `read_lesfiche` takes them) with the library's edits (dartschool#129), one
 per field given, in this order: `name` (`rename`, at most 255 characters),
 `icon` (`changeIcon`), `public_info` and `private_info` (`changePublicInfo`,
-`changePrivateInfo`; plain text, as `edit_planned_element`: it replaces the
+`changePrivateInfo`; text with [formatting](#formatting-in-the-info), as `edit_planned_element`: it replaces the
 whole info, and an empty text empties it), `courses` (`changeCourses`, by
 name or id as `create_lesfiche` takes them, in place of all its courses; an
 empty list removes them), `goals` (`changeGoals`, dartschool#223, in place

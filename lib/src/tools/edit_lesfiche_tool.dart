@@ -7,7 +7,8 @@ import '../planner/lesfiche_detail.dart';
 import '../planner/lesfiche_labels.dart';
 import '../planner/lesfiche_writes.dart';
 import '../planner/lesfiches.dart';
-import '../planner/planner_writes.dart';
+import '../messages/markdown_to_html.dart';
+import '../planner/planner_writes.dart' show infoMarkupNote;
 import '../problems.dart';
 import '../session.dart';
 import '../uploads/local_files.dart';
@@ -53,9 +54,7 @@ ServerTool editLesficheTool(SmartschoolSession session) => ServerTool(
         'is planned from it. Before calling this tool, read the lesfiche '
         'with read_lesfiche, show the user its name and kind and what '
         'changes, and only call this tool after the user has explicitly '
-        'confirmed it. Write the info as plain text, with a blank line '
-        'between paragraphs; HTML in it is not interpreted, it shows as '
-        'text. An info replaces the whole info: to add to it, pass the old '
+        'confirmed it. $infoMarkupNote An info replaces the whole info: to add to it, pass the old '
         'text with the addition; an empty text empties it. courses replaces '
         'all its courses; an empty list removes them. goals are learning '
         'goals as read_curriculum shows them (find them with list_curricula '
@@ -107,12 +106,12 @@ ServerTool editLesficheTool(SmartschoolSession session) => ServerTool(
         'public_info': Schema.string(
           description:
               'The new info pupils see with a lesson planned from the '
-              'lesfiche, as plain text; it replaces the whole public info. '
+              'lesfiche, in the formatting the tool description gives; it replaces the whole public info. '
               'An empty text empties it.',
         ),
         'private_info': Schema.string(
           description:
-              'The new private info, as plain text; it replaces the whole '
+              'The new private info, in the formatting the tool description gives; it replaces the whole '
               'private info. An empty text empties it.',
         ),
         'courses': lesficheCoursesSchema(
@@ -195,10 +194,10 @@ Map<_Field, Object> _changes(Map<String, Object?> arguments) {
     changes[_Field.icon] = icon;
   }
   if (arguments['public_info'] case final String text) {
-    changes[_Field.publicInfo] = plainTextToHtml(text);
+    changes[_Field.publicInfo] = infoMarkdownToHtml(text);
   }
   if (arguments['private_info'] case final String text) {
-    changes[_Field.privateInfo] = plainTextToHtml(text);
+    changes[_Field.privateInfo] = infoMarkdownToHtml(text);
   }
   if (lesficheCoursesArgument(arguments['courses']) case final courses?) {
     changes[_Field.courses] = courses;

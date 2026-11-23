@@ -410,7 +410,7 @@ void main() {
 
     test('a lesfiche without weblinks or attachments, with weblinks of '
         'publishers it does not show, a course the course list does not '
-        'name, and info as text', () async {
+        'name, and info as text with its formatting', () async {
       const fysica = FakePlannerCourse(
         'c0000000-0000-4000-8000-000000000099',
         'fysica',
@@ -442,7 +442,7 @@ void main() {
         '"unnamed course".\n'
         '\n'
         'Public info (what pupils see):\n'
-        'Breng mee:\n'
+        '**Breng mee:**\n'
         'je boek\n'
         '\n'
         'Private info (hidden from pupils):\n'

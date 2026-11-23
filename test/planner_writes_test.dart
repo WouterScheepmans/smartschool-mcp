@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter_smartschool/flutter_smartschool.dart';
+import 'package:smartschool_mcp/src/messages/markdown_to_html.dart';
 import 'package:smartschool_mcp/src/planner/planner_writes.dart';
 import 'package:smartschool_mcp/src/tools/server_tool.dart';
 import 'package:test/test.dart';
@@ -15,29 +16,29 @@ import 'package:test/test.dart';
 const _uuid = 'e0000000-0000-5000-8000-000000000006';
 
 void main() {
-  group('plainTextToHtml', () {
+  group('infoMarkdownToHtml', () {
     test('writes a paragraph per block of lines, as the planner\'s editor '
         'does', () {
       expect(
-        plainTextToHtml('Breng je laptop mee.'),
+        infoMarkdownToHtml('Breng je laptop mee.'),
         '<p>Breng je laptop mee.</p>',
       );
       expect(
-        plainTextToHtml('Eerste regel\nTweede regel\n\nNieuwe alinea'),
+        infoMarkdownToHtml('Eerste regel\nTweede regel\n\nNieuwe alinea'),
         '<p>Eerste regel<br />Tweede regel</p><p>Nieuwe alinea</p>',
       );
     });
 
     test('escapes <, & and >, so that HTML shows as text', () {
       expect(
-        plainTextToHtml('<b>vet</b> & mee <3'),
+        infoMarkdownToHtml('<b>vet</b> & mee <3'),
         '<p>&lt;b&gt;vet&lt;/b&gt; &amp; mee &lt;3</p>',
       );
       expect(
-        plainTextToHtml('<script>alert(1)</script>'),
+        infoMarkdownToHtml('<script>alert(1)</script>'),
         '<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>',
       );
-      expect(plainTextToHtml('&amp;'), '<p>&amp;amp;</p>');
+      expect(infoMarkdownToHtml('&amp;'), '<p>&amp;amp;</p>');
     });
 
     // Quotes are not markup in text content, and the planner keeps them as
@@ -45,24 +46,24 @@ void main() {
     // as the planner keeps it.
     test('leaves quotes as they are, as the planner keeps them', () {
       expect(
-        plainTextToHtml('Breng "je" laptop & lader mee <3, \'t is nodig'),
+        infoMarkdownToHtml('Breng "je" laptop & lader mee <3, \'t is nodig'),
         '<p>Breng "je" laptop &amp; lader mee &lt;3, \'t is nodig</p>',
       );
-      expect(plainTextToHtml('&quot;'), '<p>&amp;quot;</p>');
+      expect(infoMarkdownToHtml('&quot;'), '<p>&amp;quot;</p>');
     });
 
     test('takes Windows and old Mac line ends, several blank lines, and '
         'blank lines with spaces, and leaves out the white space around a '
         'paragraph or a line', () {
       expect(
-        plainTextToHtml('  a  \r\n  b\r\r\n \t \n\n\nc\n'),
+        infoMarkdownToHtml('  a  \r\n  b\r\r\n \t \n\n\nc\n'),
         '<p>a<br />b</p><p>c</p>',
       );
     });
 
     test('is empty for no text', () {
-      expect(plainTextToHtml(''), '');
-      expect(plainTextToHtml(' \n\n \t'), '');
+      expect(infoMarkdownToHtml(''), '');
+      expect(infoMarkdownToHtml(' \n\n \t'), '');
     });
   });
 
@@ -89,7 +90,7 @@ void main() {
       expect(samePlannerInfo('<p>a</p>', ''), isFalse);
       expect(samePlannerInfo('<p>a</p><p>b</p>', '<p>a<br />b</p>'), isFalse);
       // A tag is not the same as its text: HTML that Claude writes shows
-      // as text (plainTextToHtml).
+      // as text (infoMarkdownToHtml).
       expect(
         samePlannerInfo('<p><b>vet</b></p>', '<p>&lt;b&gt;vet&lt;/b&gt;</p>'),
         isFalse,

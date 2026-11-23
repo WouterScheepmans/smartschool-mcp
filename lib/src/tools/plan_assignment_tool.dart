@@ -4,6 +4,7 @@ import 'package:flutter_smartschool/flutter_smartschool.dart';
 import '../log.dart';
 import '../planner/planner_access.dart';
 import '../planner/planner_format.dart';
+import '../messages/markdown_to_html.dart';
 import '../planner/planner_writes.dart';
 import '../session.dart';
 import 'server_tool.dart';
@@ -41,9 +42,8 @@ ServerTool planAssignmentTool(SmartschoolSession session) => ServerTool(
         'The type is one of the school\'s assignment types, by its '
         'abbreviation or name, such as KO or Kleine Overhoring '
         '(list_class_assignments lists them). Private info is hidden from '
-        'pupils, but colleagues who can see the assignment read it too. Write '
-        'the info as plain text, with a blank line between paragraphs; HTML '
-        'in it is not interpreted, it shows as text. The result gives the '
+        'pupils, but colleagues who can see the assignment read it too. '
+        '$infoMarkupNote The result gives the '
         'assignment as saved, with its id. To change its name or info, use '
         'edit_planned_element; to remove it, trash_assignment. If the result '
         'says the assignment may or may not have been saved, do not call this '
@@ -77,12 +77,12 @@ ServerTool planAssignmentTool(SmartschoolSession session) => ServerTool(
         ),
         'public_info': Schema.string(
           description:
-              'What pupils see with the assignment, as plain text: a blank '
-              'line between paragraphs. Default: none.',
+              'What pupils see with the assignment, in the formatting '
+              'the tool description gives. Default: none.',
         ),
         'private_info': Schema.string(
           description:
-              'Notes pupils do not see, as plain text. Colleagues who can '
+              'Notes pupils do not see, formatted like the public info. Colleagues who can '
               'see the assignment read them too. Default: none.',
         ),
         'classes': Schema.list(
@@ -127,8 +127,10 @@ Future<CallToolResult> _plan(
     );
   }
   final wanted = lessonHourClassesArgument(arguments['classes']);
-  final publicInfo = plainTextToHtml(arguments['public_info'] as String? ?? '');
-  final privateInfo = plainTextToHtml(
+  final publicInfo = infoMarkdownToHtml(
+    arguments['public_info'] as String? ?? '',
+  );
+  final privateInfo = infoMarkdownToHtml(
     arguments['private_info'] as String? ?? '',
   );
   final assignmentTypes = AssignmentTypes.of(session);

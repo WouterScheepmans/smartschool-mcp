@@ -1,6 +1,8 @@
 import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html_parser;
 
+import 'markdown_to_html.dart' show infoColors;
+
 /// Converts an HTML message body to readable plain text with light Markdown.
 ///
 /// Meant for text Claude reads (to summarise or search a message), not for
@@ -23,7 +25,15 @@ import 'package:html/parser.dart' as html_parser;
 ///
 /// A body without any HTML tags is treated as plain text: its line breaks are
 /// kept.
-String htmlToText(String html) {
+///
+/// With [markup], inline formatting is kept too, in the Markdown that
+/// `infoMarkdownToHtml` reads back: bold (`<strong>`, `<b>`, a bold
+/// `font-weight`) as `**bold**`, italic (`<em>`, `<i>`, `font-style:
+/// italic`) as `*italic*`, underline (`<u>`, `text-decoration: underline`)
+/// as `++underlined++`, and a text colour (a `color` style or `<font
+/// color>`) as `{name}text{/}` for a colour of `infoColors`, `{#rrggbb}text{/}`
+/// for another. Formatting without visible text leaves no markers.
+String htmlToText(String html, {bool markup = false}) {
   if (!_tag.hasMatch(html)) {
     // Plain text: parse it as preformatted, which decodes character
     // references but keeps the line breaks. Without tags it cannot close the
@@ -33,7 +43,7 @@ String htmlToText(String html) {
   final document = html_parser.parse(html);
   final root = document.body ?? document.documentElement;
   if (root == null) return '';
-  return (_TextWriter()..children(root)).result();
+  return (_TextWriter(markup: markup)..children(root)).result();
 }
 
 /// Something that starts an HTML tag, comment or doctype.
@@ -115,7 +125,16 @@ final class _Prefix {
 /// and only written in front of the next visible text, so empty elements and
 /// trailing whitespace leave no trace.
 final class _TextWriter {
+  _TextWriter({required this.markup});
+
+  /// Whether inline formatting is written as Markdown markers.
+  final bool markup;
+
   final StringBuffer _out = StringBuffer();
+
+  /// Opening markers of formatting that has no visible text yet: written in
+  /// front of the next text, dropped when the formatting ends first.
+  String _pendingOpen = '';
 
   /// Line breaks to write before the next text; 2 means a blank line.
   int _pendingBreaks = 0;
@@ -211,12 +230,100 @@ final class _TextWriter {
           _break(1);
           children(element);
           _break(1);
+        } else if (markup && _preDepth == 0) {
+          _formatted(element);
         } else {
           // Inline elements (span, strong, font, td outside a row, ...) and
           // unknown ones.
           children(element);
         }
     }
+  }
+
+  /// The children of [element], an inline element, between the markers of
+  /// its formatting ([_markers]).
+  void _formatted(Element element) {
+    final markers = _markers(element);
+    for (final (open, _) in markers) {
+      _pendingOpen += open;
+    }
+    children(element);
+    for (final (open, close) in markers.reversed) {
+      if (_pendingOpen.endsWith(open)) {
+        // No visible text inside: no markers either.
+        _pendingOpen = _pendingOpen.substring(
+          0,
+          _pendingOpen.length - open.length,
+        );
+      } else {
+        _out.write(close);
+      }
+    }
+  }
+
+  /// The opening and closing markers of the formatting of [element], the
+  /// outermost first: its colour, then bold, italic and underline.
+  static List<(String, String)> _markers(Element element) {
+    final name = element.localName ?? '';
+    final style = _styles(element.attributes['style'] ?? '');
+    final weight = style['font-weight'] ?? '';
+    final bold =
+        name == 'strong' ||
+        name == 'b' ||
+        weight == 'bold' ||
+        weight == 'bolder' ||
+        (int.tryParse(weight) ?? 0) >= 600;
+    final italic =
+        name == 'em' ||
+        name == 'i' ||
+        (style['font-style'] ?? '').startsWith('italic');
+    final underline =
+        name == 'u' ||
+        (style['text-decoration'] ?? '').contains('underline') ||
+        (style['text-decoration-line'] ?? '').contains('underline');
+    final color = _colorName(
+      style['color'] ?? (name == 'font' ? element.attributes['color'] : null),
+    );
+    return [
+      if (color != null) ('{$color}', '{/}'),
+      if (bold) ('**', '**'),
+      if (italic) ('*', '*'),
+      if (underline) ('++', '++'),
+    ];
+  }
+
+  /// The declarations of a `style` attribute, by lower-case property name.
+  static Map<String, String> _styles(String style) => {
+    for (final declaration in style.split(';'))
+      if (declaration.indexOf(':') case final colon when colon > 0)
+        declaration.substring(0, colon).trim().toLowerCase(): declaration
+            .substring(colon + 1)
+            .replaceAll(RegExp(r'!important', caseSensitive: false), '')
+            .trim()
+            .toLowerCase(),
+  };
+
+  /// [color], a CSS colour (`#rgb`, `#rrggbb` or `rgb(r, g, b)`), as an
+  /// info text names it: the name of a colour of [infoColors], or its hex
+  /// code. `null` for no colour, black's `inherit` and the like, and a
+  /// colour it cannot read.
+  static String? _colorName(String? color) {
+    if (color == null) return null;
+    var value = color.trim().toLowerCase();
+    if (RegExp(r'^#[0-9a-f]{3}$').hasMatch(value)) {
+      value = '#${value.substring(1).split('').map((d) => '$d$d').join()}';
+    } else if (RegExp(
+          r'^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*[\d.]+\s*)?\)$',
+        ).firstMatch(value)
+        case final rgb?) {
+      value =
+          '#${[1, 2, 3].map((i) => int.parse(rgb[i]!).clamp(0, 255).toRadixString(16).padLeft(2, '0')).join()}';
+    }
+    if (!RegExp(r'^#[0-9a-f]{6}$').hasMatch(value)) return null;
+    for (final MapEntry(:key, value: hex) in infoColors.entries) {
+      if (hex == value) return key;
+    }
+    return value;
   }
 
   void _link(Element link) {
@@ -352,6 +459,8 @@ final class _TextWriter {
       _out.write(gap);
     }
     _pendingGap = null;
+    _out.write(_pendingOpen);
+    _pendingOpen = '';
     _out.write(text);
     _visible += text.length;
     _written = true;

@@ -1,5 +1,6 @@
 import 'package:dart_mcp/server.dart';
 
+import '../messages/markdown_to_html.dart';
 import '../planner/planner_writes.dart';
 import '../session.dart';
 import 'server_tool.dart';
@@ -27,8 +28,7 @@ ServerTool planLessonTool(SmartschoolSession session) => ServerTool(
         'has explicitly confirmed it. For a whole week, one confirmation of '
         'the full list is enough; then call this tool once per hour. Private '
         'info is hidden from pupils, but colleagues who can see the lesson '
-        'read it too. Write the info as plain text, with a blank line between '
-        'paragraphs; HTML in it is not interpreted, it shows as text. The '
+        'read it too. $infoMarkupNote The '
         'result gives the lesson as saved, with its id: the hour\'s old id no '
         'longer exists. For a few seconds after a change list_planner can '
         'still show the old state: check a lesson with read_planned_element. '
@@ -53,12 +53,12 @@ ServerTool planLessonTool(SmartschoolSession session) => ServerTool(
         ),
         'public_info': Schema.string(
           description:
-              'What pupils see with the lesson, as plain text: a blank line '
-              'between paragraphs. Default: none.',
+              'What pupils see with the lesson, in the formatting the '
+              'tool description gives. Default: none.',
         ),
         'private_info': Schema.string(
           description:
-              'Notes pupils do not see, as plain text. Colleagues who can '
+              'Notes pupils do not see, formatted like the public info. Colleagues who can '
               'see the lesson read them too. Default: none.',
         ),
       },
@@ -86,8 +86,10 @@ Future<CallToolResult> _plan(
       'name is empty: pass the name of the lesson. Nothing was sent.',
     );
   }
-  final publicInfo = plainTextToHtml(arguments['public_info'] as String? ?? '');
-  final privateInfo = plainTextToHtml(
+  final publicInfo = infoMarkdownToHtml(
+    arguments['public_info'] as String? ?? '',
+  );
+  final privateInfo = infoMarkdownToHtml(
     arguments['private_info'] as String? ?? '',
   );
   return fillLessonHour(

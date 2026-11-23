@@ -4,6 +4,7 @@ import 'package:flutter_smartschool/flutter_smartschool.dart';
 import '../goals/goals.dart';
 import '../planner/planner_access.dart';
 import '../planner/planner_format.dart';
+import '../messages/markdown_to_html.dart';
 import '../planner/planner_writes.dart';
 import '../problems.dart';
 import '../session.dart';
@@ -37,9 +38,8 @@ ServerTool editPlannedElementTool(SmartschoolSession session) => ServerTool(
         'call it after the user has explicitly confirmed it. For several '
         'elements, one confirmation of the full list is enough; then call '
         'this tool once per element. Private info is hidden from pupils, but '
-        'colleagues who can see the element read it too. Write the info as '
-        'plain text, with a blank line between paragraphs; HTML in it is not '
-        'interpreted, it shows as text. An info replaces the whole info: to '
+        'colleagues who can see the element read it too. $infoMarkupNote '
+        'An info replaces the whole info: to '
         'add to it, pass the old text with the addition; an empty text '
         'empties it. goals are learning goals as read_curriculum shows them '
         '(find them with list_curricula and read_curriculum); pupils see '
@@ -66,12 +66,12 @@ ServerTool editPlannedElementTool(SmartschoolSession session) => ServerTool(
         ),
         'public_info': Schema.string(
           description:
-              'The new info pupils see, as plain text; it replaces the whole '
+              'The new info pupils see, in the formatting the tool description gives; it replaces the whole '
               'public info. An empty text empties it.',
         ),
         'private_info': Schema.string(
           description:
-              'The new private info, as plain text; it replaces the whole '
+              'The new private info, in the formatting the tool description gives; it replaces the whole '
               'private info. An empty text empties it.',
         ),
         'goals': goalsSchema(
@@ -157,7 +157,7 @@ Future<CallToolResult> _edit(
   final changes = <_Field, Object>{
     for (final field in [_Field.name, _Field.publicInfo, _Field.privateInfo])
       if (arguments[field.argument] case final String text)
-        field: field == _Field.name ? text.trim() : plainTextToHtml(text),
+        field: field == _Field.name ? text.trim() : infoMarkdownToHtml(text),
     _Field.goals: ?goalsArgument(arguments['goals']),
   };
   if (changes.isEmpty) {

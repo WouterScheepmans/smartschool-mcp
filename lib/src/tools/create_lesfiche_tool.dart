@@ -10,6 +10,7 @@ import '../planner/lesfiche_writes.dart';
 import '../planner/lesfiches.dart';
 import '../planner/planner_access.dart';
 import '../planner/planner_format.dart';
+import '../messages/markdown_to_html.dart';
 import '../planner/planner_writes.dart';
 import '../session.dart';
 import '../uploads/local_files.dart';
@@ -82,9 +83,7 @@ ServerTool createLesficheTool(
           'user has confirmed it). Learning goals are given as read_curriculum '
           'shows them (find them with list_curricula and read_curriculum); a '
           'goal the goal selector does not know is refused, and nothing is '
-          'made. Write the info as plain text, with a blank '
-          'line between paragraphs; HTML in it is not interpreted, it shows as '
-          'text. When pupils see a weblink or a file counts from the lesson '
+          'made. $infoMarkupNote When pupils see a weblink or a file counts from the lesson '
           'the lesfiche is planned in: $lesficheVisibilityValues. The result '
           'gives the lesfiche as made, with its id for plan_lesfiche, '
           'read_lesfiche and edit_lesfiche, which changes it later (its '
@@ -122,12 +121,12 @@ ServerTool createLesficheTool(
           ),
           'public_info': Schema.string(
             description:
-                'What pupils see with a lesson planned from the lesfiche, as '
-                'plain text: a blank line between paragraphs. Default: none.',
+                'What pupils see with a lesson planned from the lesfiche, in '
+                'the formatting the tool description gives. Default: none.',
           ),
           'private_info': Schema.string(
             description:
-                'Notes pupils do not see, as plain text. Default: none.',
+                'Notes pupils do not see, formatted like the public info. Default: none.',
           ),
           'courses': lesficheCoursesSchema(
             description: 'The courses of the lesfiche. Default: none.',
@@ -195,8 +194,10 @@ Future<CallToolResult> _create(
           ? LessonContentService.defaultAssignmentIcon
           : LessonContentService.defaultLessonIcon,
   };
-  final publicInfo = plainTextToHtml(arguments['public_info'] as String? ?? '');
-  final privateInfo = plainTextToHtml(
+  final publicInfo = infoMarkdownToHtml(
+    arguments['public_info'] as String? ?? '',
+  );
+  final privateInfo = infoMarkdownToHtml(
     arguments['private_info'] as String? ?? '',
   );
   final wanted = lesficheCoursesArgument(arguments['courses']) ?? const [];

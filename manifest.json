@@ -162,7 +162,7 @@
     },
     {
       "name": "plan_lesson",
-      "description": "Vult een leeg lesuur in je eigen planner met een les: een titel, info voor leerlingen en privé-info. Pas na jouw bevestiging."
+      "description": "Vult een leeg lesuur in je eigen planner met een les: een titel, info voor leerlingen en privé-info, met opmaak. Pas na jouw bevestiging."
     },
     {
       "name": "edit_planned_element",
@@ -214,7 +214,7 @@
     },
     {
       "name": "create_lesfiche",
-      "description": "Maakt een nieuwe lesfiche in je eigen bibliotheek van de module Lesfiches, met de info, de vakken, de leerdoelen, de labels, weblinks en bijlagen van deze pc. Pas na jouw bevestiging."
+      "description": "Maakt een nieuwe lesfiche in je eigen bibliotheek van de module Lesfiches, met de info (met opmaak: vet, cursief, onderlijnd, kleur en opsommingen), de vakken, de leerdoelen, de labels, weblinks en bijlagen van deze pc. Pas na jouw bevestiging."
     },
     {
       "name": "duplicate_lesfiches",
@@ -222,7 +222,7 @@
     },
     {
       "name": "edit_lesfiche",
-      "description": "Past een lesfiche in je eigen bibliotheek aan: de naam, het icoon, de info, de vakken, de leerdoelen, de labels, of ze zichtbaar is in de module. Pas na jouw bevestiging."
+      "description": "Past een lesfiche in je eigen bibliotheek aan: de naam, het icoon, de info (met opmaak), de vakken, de leerdoelen, de labels, of ze zichtbaar is in de module. Pas na jouw bevestiging."
     },
     {
       "name": "set_lesfiche_weblink",

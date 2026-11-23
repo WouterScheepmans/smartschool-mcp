@@ -1127,7 +1127,7 @@ void main() {
         '\n'
         'Private info (hidden from pupils, but colleagues who can read this '
         'element see it too):\n'
-        'Opmerkingen\n'
+        '**Opmerkingen**\n'
         'Boek meebrengen',
       );
       expect(text, isNot(contains('<')), reason: 'no raw HTML');

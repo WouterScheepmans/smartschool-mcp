@@ -358,7 +358,7 @@ String? plannerName(
 /// [html], an info text of the planner, as plain text, like a message
 /// body; cut off at [maxPlannerInfoLength] characters with a note.
 String plannerInfoText(String html) {
-  final text = htmlToText(html).trim();
+  final text = htmlToText(html, markup: true).trim();
   if (text.length <= maxPlannerInfoLength) return text;
   return '${text.substring(0, maxPlannerInfoLength).trimRight()}\n'
       '[Cut off: showing the first $maxPlannerInfoLength of ${text.length} '
