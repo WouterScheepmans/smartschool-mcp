@@ -120,6 +120,22 @@ void main() {
       expect(infoMarkdownToHtml(show(html)), html);
     });
 
+    // Seen live on 2026-11-23: the web editor writes a colour of its palette
+    // as rgb(), on the list item too, with line breaks between the blocks.
+    test('reads the web editor\'s own colours', () {
+      expect(
+        show(
+          '<ol>\n'
+          '<li style="color:rgb(186,55,42);"><span '
+          'style="color:rgb(186,55,42);">eerste stap</span></li>\n'
+          '<li style="color:rgb(45,194,107);"><span '
+          'style="color:rgb(45,194,107);">tweede stap</span></li>\n'
+          '</ol>',
+        ),
+        '1. {dark red}eerste stap{/}\n2. {green}tweede stap{/}',
+      );
+    });
+
     test('without markup, formatting is dropped as before', () {
       expect(htmlToText('<p><strong>vet</strong> <u>x</u></p>'), 'vet x');
     });

@@ -41,7 +41,7 @@ String markdownToHtml(String text) => _convert(text, _Flavor.message);
 String infoMarkdownToHtml(String text) => _convert(text, _Flavor.info);
 
 /// The colours an info text can name, `{name}...{/}`, with the hex code
-/// written: the text colours of the web editor's palette. `htmlToText` with
+/// written: the text colours of the web editor's palette (seen live: its dark red is `rgb(186,55,42)`, its green `rgb(45,194,107)`). `htmlToText` with
 /// `markup` names a colour of this list by its name, any other by its hex
 /// code.
 const infoColors = {
