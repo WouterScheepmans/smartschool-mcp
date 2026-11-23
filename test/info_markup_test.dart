@@ -136,6 +136,59 @@ void main() {
       );
     });
 
+    test('nested lists are written back as nested lists', () {
+      const html =
+          '<p><strong>Opmerkingen:</strong></p>'
+          '<ul><li>2026:<ul><li>eerste punt</li><li>tweede punt</li></ul>'
+          '</li><li>nog een</li></ul>'
+          '<ol><li>stap<ol><li>deelstap</li></ol></li></ol>';
+      final shown = show(html);
+      expect(
+        shown,
+        '**Opmerkingen:**\n'
+        '\n'
+        '- 2026:\n'
+        '  - eerste punt\n'
+        '  - tweede punt\n'
+        '- nog een\n'
+        '\n'
+        '1. stap\n'
+        '   1. deelstap',
+      );
+      expect(infoMarkdownToHtml(shown), html);
+    });
+
+    // In the shape of a lesfiche seen live on 2026-11-23 (made-up text): a
+    // title underlined and coloured, black text, an empty coloured span.
+    test('a lesfiche as the web editor writes it reads back the same after '
+        'a write', () {
+      const html =
+          '<p><span style="text-decoration:underline;color:rgb(186,55,42);">'
+          '<strong>H1: TITEL</strong></span><span style="text-decoration:'
+          'underline;color:rgb(22,145,121);"></span></p>\n'
+          '<p><span style="color:rgb(0,0,0);"><strong>3 Onderdeel</strong>'
+          '</span></p>\n'
+          '<p><span style="color:rgb(0,0,0);">Theorie p. 18<br />Oefeningen: '
+          '3A</span></p>\n'
+          '<ul>\n<li>26-27:\n<ul>\n<li>punt een</li>\n<li>punt twee</li>\n'
+          '</ul>\n</li>\n</ul>';
+      final shown = show(html);
+      expect(
+        shown,
+        '{dark red}++**H1: TITEL**++{/}\n'
+        '\n'
+        '{black}**3 Onderdeel**{/}\n'
+        '\n'
+        '{black}Theorie p. 18{/}\n'
+        '{black}Oefeningen: 3A{/}\n'
+        '\n'
+        '- 26-27:\n'
+        '  - punt een\n'
+        '  - punt twee',
+      );
+      expect(show(infoMarkdownToHtml(shown)), shown);
+    });
+
     test('without markup, formatting is dropped as before', () {
       expect(htmlToText('<p><strong>vet</strong> <u>x</u></p>'), 'vet x');
     });

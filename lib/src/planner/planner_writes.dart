@@ -44,7 +44,8 @@ const plannerListLagNote =
 const infoMarkupNote =
     'Write the info as plain text or simple Markdown, which becomes the '
     'formatting of the web editor: a blank line between paragraphs; lines '
-    'starting with "- " or "1. " for a bulleted or numbered list; **bold**, '
+    'starting with "- " or "1. " for a bulleted or numbered list (indent '
+    'an item by two spaces more to nest it in the item above); **bold**, '
     '*italic* and ++underlined++; and {red}text{/} for coloured text, with '
     'one of the colours red, dark red, orange, yellow, green, dark green, '
     'blue, dark blue, purple, dark purple, gray, dark gray and black, or a '
@@ -52,6 +53,14 @@ const infoMarkupNote =
     'and the like). HTML in it is not interpreted: it shows as text. '
     'read_lesfiche and read_planned_element show an info in this same form, '
     'so pass it back as shown to keep its formatting.';
+
+/// How the read tools (`read_lesfiche`, `read_planned_element`) show an
+/// info, for their descriptions: in the Markdown of [infoMarkupNote].
+const infoFormattingShown =
+    'with its formatting in the Markdown that edit_lesfiche and '
+    'edit_planned_element take (**bold**, *italic*, ++underlined++, '
+    '{red}text{/} or {#rrggbb}text{/} for colours, lists, nested lists '
+    'indented): pass an info back as shown to keep its formatting';
 
 /// Whether [a] and [b] are the same info of a planned element, as
 /// `PlannerService.changePublicInfo` and `changePrivateInfo` compare an info

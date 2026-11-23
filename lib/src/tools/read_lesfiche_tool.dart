@@ -4,6 +4,7 @@ import '../planner/lesfiche_detail.dart';
 import '../planner/lesfiches.dart';
 import '../planner/planner_access.dart';
 import '../session.dart';
+import '../planner/planner_writes.dart' show infoFormattingShown;
 import 'server_tool.dart';
 
 /// `read_lesfiche`: one lesfiche of the user's Lesfiches module in full
@@ -25,8 +26,8 @@ ServerTool readLesficheTool(SmartschoolSession session) => ServerTool(
         '(each with its curriculum, headings, number and text, and the id, '
         'leerplanId and type it is stored with; a goal the goal selector '
         'does not know is said to be unknown), and its public info '
-        '(what pupils see) and private info (hidden from pupils) as plain '
-        'text. When pupils see a weblink or an attachment counts from the '
+        '(what pupils see) and private info (hidden from pupils) as text, '
+        '$infoFormattingShown. When pupils see a weblink or an attachment counts from the '
         'lesson the lesfiche is planned in: always, never, from the start of '
         'that lesson, from its end, or a number of days after its end. Use '
         'it to tell the user what a lesfiche holds, to compare a lesfiche '

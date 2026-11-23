@@ -320,6 +320,7 @@ or simple Markdown, and the server turns it into that HTML
 | --- | --- |
 | a blank line between paragraphs, a line break | `<p>` per paragraph, `<br />` |
 | lines starting with `- ` or `1. ` | a bulleted (`<ul>`) or numbered (`<ol>`) list |
+| such a line indented further than the item above | a list nested in that item |
 | `**bold**`, `*italic*`, `++underlined++` | `<strong>`, `<em>`, `<u>` |
 | `{red}text{/}`, `{#1a7f37}text{/}` | `<span style="color:#e03e2d;">text</span>` |
 | `[text](https://...)` | a link (`http`, `https` and `mailto` only) |
@@ -338,10 +339,14 @@ The read tools show an info the other way round, in the same Markdown
 `**bold**`, `<em>`, `<i>` and `font-style: italic` as `*italic*`, `<u>` and
 `text-decoration: underline` as `++underlined++`, and a `color` style or
 `<font color>` as `{name}text{/}` for a colour of the palette, `{#rrggbb}`
-for another. So Claude passes an info back as it was shown to keep its
-formatting. What the Markdown has no form for (headings, tables, nested
-lists, background colours, font sizes) is shown as text without that
-formatting, and is lost when the info is written back.
+for another; a nested list is indented under its item. Formatting that runs
+over a line break (`<br />`) is closed before it and opened again after it,
+since the Markdown marks up one line at a time. So Claude passes an info
+back as it was shown to keep its formatting (as the same text: the HTML may
+differ, such as `<u>` for an underline style). What the Markdown has no form
+for (headings, tables, background colours, font sizes, spaces at the start
+of a line) is shown as text without that formatting, and is lost when the
+info is written back.
 
 ### How `read_lesfiche_attachment` works
 

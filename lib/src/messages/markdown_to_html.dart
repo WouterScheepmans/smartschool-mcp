@@ -92,9 +92,10 @@ String _convert(String text, _Flavor flavor) {
       .split('\n');
   final blocks = <String>[];
   final paragraph = <String>[];
-  final items = <String>[];
-  _ListKind? list;
-  int? listStart;
+  // The lists open at this line, outermost first: a line indented further
+  // than the items of the innermost list starts a list inside its last
+  // item.
+  final lists = <_OpenList>[];
   String inline(String line) => _inline(line, flavor);
 
   void endParagraph() {
@@ -103,52 +104,99 @@ String _convert(String text, _Flavor flavor) {
     paragraph.clear();
   }
 
-  void endList() {
-    if (list == null) return;
-    final start = listStart != null && listStart != 1
-        ? ' start="$listStart"'
-        : '';
-    blocks.add(
-      '<${list!.tag}$start>'
-      '${items.map((item) => '<li>$item</li>').join()}'
-      '</${list!.tag}>',
-    );
-    items.clear();
-    list = null;
-    listStart = null;
+  /// Closes the innermost list: into the last item of the list around it,
+  /// or as a block.
+  void closeList() {
+    final html = lists.removeLast().html;
+    if (lists.isEmpty) {
+      blocks.add(html);
+    } else {
+      lists.last.items.last.write(html);
+    }
+  }
+
+  void endLists() {
+    while (lists.isNotEmpty) {
+      closeList();
+    }
+  }
+
+  void addItem(int indent, _ListKind kind, int? start, String text) {
+    while (lists.isNotEmpty && indent < lists.last.indent) {
+      closeList();
+    }
+    if (lists.isNotEmpty &&
+        indent == lists.last.indent &&
+        lists.last.kind != kind) {
+      closeList();
+    }
+    if (lists.isEmpty || indent > lists.last.indent) {
+      lists.add(_OpenList(indent, kind, start));
+    }
+    lists.last.items.add(StringBuffer(inline(text)));
   }
 
   for (final line in lines) {
     if (line.trim().isEmpty) {
       endParagraph();
-      endList();
+      endLists();
       continue;
     }
+    final indent = _indent(line);
     if (_bullet.firstMatch(line) case final match?) {
       endParagraph();
-      if (list != _ListKind.bulleted) endList();
-      list = _ListKind.bulleted;
-      items.add(inline(match[1]!.trim()));
+      addItem(indent, _ListKind.bulleted, null, match[1]!.trim());
     } else if (_numbered.firstMatch(line) case final match?) {
       endParagraph();
-      if (list != _ListKind.numbered) {
-        endList();
-        listStart = int.tryParse(match[1]!);
-      }
-      list = _ListKind.numbered;
-      items.add(inline(match[2]!.trim()));
-    } else if (list != null && line.startsWith(RegExp(r'\s'))) {
-      items.add(
-        '${items.removeLast()}${flavor.lineBreak}${inline(line.trim())}',
+      addItem(
+        indent,
+        _ListKind.numbered,
+        int.tryParse(match[1]!),
+        match[2]!.trim(),
       );
+    } else if (lists.isNotEmpty && indent > 0) {
+      lists.last.items.last.write('${flavor.lineBreak}${inline(line.trim())}');
     } else {
-      endList();
+      endLists();
       paragraph.add(line.trim());
     }
   }
   endParagraph();
-  endList();
+  endLists();
   return blocks.join(flavor.blockSeparator);
+}
+
+/// How far [line] is indented: its leading spaces, a tab counting as four.
+int _indent(String line) {
+  var width = 0;
+  for (final char in line.split('')) {
+    if (char == ' ') {
+      width++;
+    } else if (char == '\t') {
+      width += 4;
+    } else {
+      break;
+    }
+  }
+  return width;
+}
+
+/// A list [_convert] is writing: its items so far, each with what goes in
+/// its `<li>` (a nested list included).
+final class _OpenList {
+  _OpenList(this.indent, this.kind, this.start);
+
+  final int indent;
+  final _ListKind kind;
+  final int? start;
+  final List<StringBuffer> items = [];
+
+  String get html {
+    final first = start != null && start != 1 ? ' start="$start"' : '';
+    return '<${kind.tag}$first>'
+        '${items.map((item) => '<li>$item</li>').join()}'
+        '</${kind.tag}>';
+  }
 }
 
 enum _ListKind {

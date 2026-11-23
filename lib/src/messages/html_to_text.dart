@@ -136,6 +136,10 @@ final class _TextWriter {
   /// front of the next text, dropped when the formatting ends first.
   String _pendingOpen = '';
 
+  /// The markers of the formatted elements the writer is inside, outermost
+  /// first.
+  final List<(String, String)> _active = [];
+
   /// Line breaks to write before the next text; 2 means a blank line.
   int _pendingBreaks = 0;
 
@@ -191,6 +195,7 @@ final class _TextWriter {
     }
     switch (name) {
       case 'br':
+        _breakFormatting();
         if (_written) _pendingBreaks++;
         _pendingGap = null;
       case 'hr':
@@ -247,7 +252,9 @@ final class _TextWriter {
     for (final (open, _) in markers) {
       _pendingOpen += open;
     }
+    _active.addAll(markers);
     children(element);
+    _active.removeRange(_active.length - markers.length, _active.length);
     for (final (open, close) in markers.reversed) {
       if (_pendingOpen.endsWith(open)) {
         // No visible text inside: no markers either.
@@ -259,6 +266,26 @@ final class _TextWriter {
         _out.write(close);
       }
     }
+  }
+
+  /// Closes the formatting written so far before a line break, and opens
+  /// it again after it: the Markdown that `infoMarkdownToHtml` reads marks
+  /// up one line at a time.
+  void _breakFormatting() {
+    if (_active.isEmpty) return;
+    // The markers not written yet are the last ones, in [_pendingOpen].
+    var pending = _pendingOpen;
+    var waiting = 0;
+    for (final (open, _) in _active.reversed) {
+      if (!pending.endsWith(open)) break;
+      pending = pending.substring(0, pending.length - open.length);
+      waiting++;
+    }
+    for (final (_, close)
+        in _active.sublist(0, _active.length - waiting).reversed) {
+      _out.write(close);
+    }
+    _pendingOpen = pending + _active.map((marker) => marker.$1).join();
   }
 
   /// The opening and closing markers of the formatting of [element], the

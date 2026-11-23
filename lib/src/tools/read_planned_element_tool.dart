@@ -5,6 +5,7 @@ import '../goals/goals.dart';
 import '../planner/planner_access.dart';
 import '../planner/planner_format.dart';
 import '../session.dart';
+import '../planner/planner_writes.dart' show infoFormattingShown;
 import 'server_tool.dart';
 
 /// `read_planned_element`: one element of the planner in full, with its
@@ -20,7 +21,7 @@ ServerTool readPlannedElementTool(SmartschoolSession session) => ServerTool(
         'of its moments, a meeting, a lesson-free day, …) '
         'in full, by the id list_planner shows. Gives what its list line '
         'says, one field per line, plus its public info and private info as '
-        'plain text, its labels, its attachments and weblinks, each with '
+        'text, $infoFormattingShown; its labels, its attachments and weblinks, each with '
         'when pupils see it, and the learning goals of a lesson (each with '
         'its curriculum, headings, number and text, and the id, leerplanId '
         'and type it is stored with; a goal the goal selector does not know '
