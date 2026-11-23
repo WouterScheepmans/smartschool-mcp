@@ -31,13 +31,13 @@ void main() {
         'around them', () {
       expect(
         infoMarkdownToHtml('{red}let op{/} en {Dark Blue}**Taak**{/}'),
-        '<p><span style="color: #e03e2d;">let op</span> en '
-        '<span style="color: #236fa1;"><strong>Taak</strong></span></p>',
+        '<p><span style="color:#e03e2d;">let op</span> en '
+        '<span style="color:#236fa1;"><strong>Taak</strong></span></p>',
       );
       expect(
         infoMarkdownToHtml('**{#1A7F37}groen{/}** en {#f00}rood{/}'),
-        '<p><strong><span style="color: #1a7f37;">groen</span></strong> en '
-        '<span style="color: #ff0000;">rood</span></p>',
+        '<p><strong><span style="color:#1a7f37;">groen</span></strong> en '
+        '<span style="color:#ff0000;">rood</span></p>',
       );
     });
 
@@ -51,7 +51,7 @@ void main() {
     test('HTML is never markup, also not in a colour or a style', () {
       expect(
         infoMarkdownToHtml('{red}<script>x</script>{/} <span style="x">'),
-        '<p><span style="color: #e03e2d;">&lt;script&gt;x&lt;/script&gt;'
+        '<p><span style="color:#e03e2d;">&lt;script&gt;x&lt;/script&gt;'
         '</span> &lt;span style="x"&gt;</p>',
       );
       expect(
@@ -86,7 +86,7 @@ void main() {
     test('names a colour of the palette, gives another its hex code', () {
       expect(
         show(
-          '<p><span style="color: #E03E2D;">rood</span>, '
+          '<p><span style="color:#E03E2D;">rood</span>, '
           '<span style="color: rgb(53, 152, 219)">blauw</span>, '
           '<font color="#123">anders</font>, '
           '<span style="color: inherit">gewoon</span></p>',
@@ -98,7 +98,7 @@ void main() {
     test('nests markers in the order the writer reads them back', () {
       expect(
         show(
-          '<p><span style="color: #e03e2d; font-weight: bold;">'
+          '<p><span style="color:#e03e2d; font-weight: bold;">'
           'Let <em>op</em></span>!</p>',
         ),
         '{red}**Let *op***{/}!',
@@ -115,7 +115,7 @@ void main() {
     test('round trip: what it shows converts back to the same HTML', () {
       const html =
           '<p>Intro <strong>vet</strong> en '
-          '<span style="color: #e03e2d;"><em>rood</em></span></p>'
+          '<span style="color:#e03e2d;"><em>rood</em></span></p>'
           '<ul><li><u>een</u></li><li>twee</li></ul>';
       expect(infoMarkdownToHtml(show(html)), html);
     });

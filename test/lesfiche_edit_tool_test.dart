@@ -314,7 +314,7 @@ void main() {
         {
           'newPublicInfo':
               '<p>Breng <strong>je boek</strong> mee:</p>'
-              '<ul><li><span style="color: #e03e2d;">een <u>pen</u></span>'
+              '<ul><li><span style="color:#e03e2d;">een <u>pen</u></span>'
               '</li><li><em>papier</em></li></ul>',
         },
       ]);

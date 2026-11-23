@@ -314,14 +314,14 @@ the ids it shows, and to `trash_lesfiches`.
 The public and private info of a lesfiche, and of a lesson or assignment in
 the planner, is HTML, made by the web editor. Claude writes it as plain text
 or simple Markdown, and the server turns it into that HTML
-(`infoMarkdownToHtml` in `lib/src/messages/markdown_to_html.dart`):
+(`infoMarkdownToHtml` in `lib/src/messages/markdown_to_html.dart`), in the form Smartschool keeps it (seen live: it writes a colour as `color:#rrggbb;`):
 
 | Claude writes | Becomes |
 | --- | --- |
 | a blank line between paragraphs, a line break | `<p>` per paragraph, `<br />` |
 | lines starting with `- ` or `1. ` | a bulleted (`<ul>`) or numbered (`<ol>`) list |
 | `**bold**`, `*italic*`, `++underlined++` | `<strong>`, `<em>`, `<u>` |
-| `{red}text{/}`, `{#1a7f37}text{/}` | `<span style="color: #e03e2d;">text</span>` |
+| `{red}text{/}`, `{#1a7f37}text{/}` | `<span style="color:#e03e2d;">text</span>` |
 | `[text](https://...)` | a link (`http`, `https` and `mailto` only) |
 
 The colours by name are those of the editor's palette (`infoColors`): red,

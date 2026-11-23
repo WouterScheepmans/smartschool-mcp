@@ -32,7 +32,7 @@ String markdownToHtml(String text) => _convert(text, _Flavor.message);
 ///   the module keeps them as quotes;
 /// - `++underlined++` becomes `<u>`;
 /// - `{red}coloured text{/}` becomes
-///   `<span style="color: #e03e2d;">coloured text</span>`: the colour is one
+///   `<span style="color:#e03e2d;">coloured text</span>`: the colour is one
 ///   of [infoColors] by name, or `#rrggbb` / `#rgb`. A colour that is not
 ///   known is left as written. Colours do not nest (the first `{/}` ends
 ///   the colour), but may hold and be held by bold, italic and underline.
@@ -185,7 +185,7 @@ String _inline(String text, _Flavor flavor) => text.splitMapJoin(
               '${inner(match.namedGroup('colored')!)}'
               '${flavor.escape('{/}')}';
         }
-        return '<span style="color: $hex;">'
+        return '<span style="color:$hex;">'
             '${inner(match.namedGroup('colored')!)}</span>';
       }
       if (match.namedGroup('underline') case final underlined?) {
