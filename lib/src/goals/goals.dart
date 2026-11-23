@@ -17,10 +17,60 @@ import '../uploads/local_files.dart';
 // for it (a `LearningGoalRef`: `id`, `leerplanId`, `type`), in the words of
 // [formatGoalRef], so that a goal write (#187) can take them from any of
 // these tools.
+//
+// The curricula of the GO! (the "GO! Navigator" tab of the Lesfiches
+// module's goal dialog) are read at another location of the same selector
+// (`GoalLocation.lessonContentNavigator`, seen live on 2026-11-23); their
+// goals are stored with type `go-navigator`, and only that location names
+// them. [goalSourceSchema] lets `list_curricula` and `read_curriculum` pick
+// the source; [nameGoals] and [checkGoals] send each goal to the location of
+// its source ([_resolveBySource]).
 
 /// At most this many goals are listed by `read_curriculum`, with a note on
 /// how to ask for fewer.
 const maxGoalLines = 200;
+
+/// The `type` a lesfiche stores a goal of the GO! Navigator with (seen live
+/// on 2026-11-23): the `leerplanType` of every curriculum of
+/// [GoalLocation.lessonContentNavigator].
+const goNavigatorType = 'go-navigator';
+
+/// The value of a `source` argument ([goalSourceSchema]) for the curricula
+/// of the GO! Navigator.
+const goNavigatorSource = 'go_navigator';
+
+/// The value of a `source` argument for the goal selector's own curricula
+/// (the eindtermen, the philosophies of life, the mini-databases): the
+/// default.
+const selectorSource = 'selector';
+
+/// The input schema of a `source` argument ([goalSource]).
+Schema goalSourceSchema() => UntitledSingleSelectEnumSchema(
+  description:
+      'Which curricula: $selectorSource (the default: the goal selector\'s '
+      'own, such as the eindtermen, the curricula of the philosophies of '
+      'life and the school\'s mini-databases) or $goNavigatorSource (the '
+      'curricula of the GO!, the "GO! Navigator" tab of a lesfiche\'s goals, '
+      'for GO! schools).',
+  values: const [selectorSource, goNavigatorSource],
+);
+
+/// The location of a `source` argument [value]: the goal selector's own
+/// curricula ([GoalLocation.lessonContent]) unless it is
+/// [goNavigatorSource]. Throws a [ToolError] for another value.
+GoalLocation goalSource(Object? value) => switch (value) {
+  null || selectorSource => GoalLocation.lessonContent,
+  goNavigatorSource => GoalLocation.lessonContentNavigator,
+  _ => throw ToolError(
+    'source must be $selectorSource or $goNavigatorSource, not "$value".',
+  ),
+};
+
+/// The words a tool uses for the curricula of [location].
+String _sourceName(GoalLocation location) =>
+    location == GoalLocation.lessonContentNavigator
+    ? 'the GO! Navigator'
+    : 'the goal selector';
 
 /// Runs [action] with a [GoalService] on the session's logged-in client.
 /// The selector's own errors become [ToolError]s ([goalToolError]); login
@@ -79,7 +129,8 @@ ToolError? goalToolError(Object error) {
 
 ToolError _noCurriculum(String id) => ToolError(
   'The goal selector has no curriculum with id $id. Take the id from '
-  'list_curricula.',
+  'list_curricula, and pass read_curriculum the same source (go_navigator '
+  'for a curriculum of the GO! Navigator).',
 );
 
 /// The words of a `query` argument [value], in lower case; none when it is
@@ -97,29 +148,37 @@ bool _holdsAll(String text, List<String> words) {
 
 /// What `list_curricula` answers: the curricula of [groups], in the
 /// selector's groups and order, one line each ([_curriculumLine]), only
-/// those whose title holds every word of [query] when it is not empty.
-String formatCurricula(List<CurriculumGroup> groups, String query) {
+/// those whose title holds every word of [query] when it is not empty. The
+/// words name the source of [location]; a curriculum's grade
+/// ([CurriculumListItem.group], as the GO! Navigator has it) counts as part
+/// of its title for [query].
+String formatCurricula(
+  List<CurriculumGroup> groups,
+  String query, {
+  GoalLocation location = GoalLocation.lessonContent,
+}) {
   final words = goalQueryWords(query);
+  final source = _sourceName(location);
   final all = groups.fold(0, (count, group) => count + group.curricula.length);
-  if (all == 0) return 'The goal selector offers no curricula.';
+  if (all == 0) return '${_capital(source)} offers no curricula.';
   final shown = [
     for (final group in groups)
       (
         group,
         [
           for (final item in group.curricula)
-            if (_holdsAll(item.title, words)) item,
+            if (_holdsAll('${item.title} ${item.group ?? ''}', words)) item,
         ],
       ),
   ];
   final count = shown.fold(0, (count, entry) => count + entry.$2.length);
-  final of = 'of the $all curricula of the goal selector';
+  final of = 'of the $all curricula of $source';
   if (count == 0) {
     return 'No curriculum whose title holds "${query.trim()}" ($of).';
   }
   return [
     if (words.isEmpty)
-      'The $all curricula of the goal selector, in its groups:'
+      'The $all curricula of $source, in its groups:'
     else
       '$count ${count == 1 ? 'curriculum' : 'curricula'} whose title holds '
           '"${query.trim()}", $of, in its groups:',
@@ -128,15 +187,23 @@ String formatCurricula(List<CurriculumGroup> groups, String query) {
         '${group.name.trim().isEmpty ? '(no group name)' : group.name.trim()}:',
         for (final item in items) '- ${_curriculumLine(item)}',
       ],
-    'read_curriculum reads the goals of one, by its id.',
+    if (location == GoalLocation.lessonContentNavigator)
+      'read_curriculum reads the goals of one, by its id, with source '
+          '$goNavigatorSource.'
+    else
+      'read_curriculum reads the goals of one, by its id.',
   ].join('\n');
 }
+
+String _capital(String text) =>
+    text.isEmpty ? text : '${text[0].toUpperCase()}${text.substring(1)}';
 
 String _curriculumLine(CurriculumListItem item) => [
   if (item.title.trim() case final title when title.isNotEmpty)
     title
   else
     '(no title)',
+  ?item.group,
   if (!item.isVisible) 'hidden in the selector',
   if (item.isFavourite) 'a favourite',
   'id ${item.id}',
@@ -157,13 +224,34 @@ String _nodeText(CurriculumNode node) {
 
 /// What a goal is, after its text, when it is not a plain goal: a goal of
 /// basic literacy, an extension goal, deprecated.
+///
+/// The goals of the GO! Navigator have kinds of their own
+/// ([CurriculumNodeType.other]): a goal (`normaal-doel`) is not noted, a
+/// subgoal (`subgoal-global`, `subgoal-platform`) is, as are
+/// `basisgeletterdheid`, `uitbreiding` and any other kind (such as `mia`),
+/// by its name.
 String _goalNotes(CurriculumNode node) {
   final notes = [
     if (node.type == CurriculumNodeType.goalBasic) 'basic literacy',
     if (node.type == CurriculumNodeType.goalExtension) 'extension goal',
+    ?_kindNote(node),
     if (node.isDeprecated) 'deprecated',
   ];
   return notes.isEmpty ? '' : ' (${notes.join(', ')})';
+}
+
+/// The note of a goal of a kind the library does not know
+/// ([CurriculumNodeType.other]), by its name ([CurriculumNode.typeName]);
+/// null for a GO! goal (`normaal-doel`) and for a kind the library knows.
+String? _kindNote(CurriculumNode node) {
+  if (node.type != CurriculumNodeType.other) return null;
+  return switch (node.typeName) {
+    'normaal-doel' => null,
+    'basisgeletterdheid' => 'basic literacy',
+    'uitbreiding' => 'extension goal',
+    'subgoal-global' || 'subgoal-platform' => 'subgoal',
+    final other => 'kind $other',
+  };
 }
 
 /// Whether [goal] holds every one of [words], in its number, its text or
@@ -227,7 +315,9 @@ String formatCurriculum(Curriculum curriculum, String query) {
       '${'  ' * goal.path.length}- ${_nodeText(goal.node)}'
       '${_goalNotes(goal.node)} | id ${goal.node.id}',
     );
-    above = goal.path;
+    // The goal itself counts as above what follows: a subgoal of the GO!
+    // Navigator, under its goal, is not given that goal as a heading again.
+    above = [...goal.path, goal.node];
   }
   return [
     ...head,
@@ -262,10 +352,11 @@ const NamedGoals noGoals = (
 );
 
 /// Names the goals [refs] with [client] (`GoalService.resolve`, at
-/// [location]: where the selector is opened). Without goals it sends
-/// nothing. A [SmartschoolGoalError] does not lose the read the goals
-/// belong to: the result then holds it, and the goals are shown by their
-/// ids ([formatNamedGoals]). Any other error is passed on.
+/// [location]: where the selector is opened; goals of the GO! Navigator at
+/// its own location, [_resolveBySource]). Without goals it sends nothing. A
+/// [SmartschoolGoalError] does not lose the read the goals belong to: the
+/// result then holds it, and the goals are shown by their ids
+/// ([formatNamedGoals]). Any other error is passed on.
 Future<NamedGoals> nameGoals(
   SmartschoolClient client,
   List<LearningGoalRef> refs, {
@@ -275,14 +366,50 @@ Future<NamedGoals> nameGoals(
     return (refs: refs, curricula: const <Curriculum>[], error: null);
   }
   try {
-    final curricula = await GoalService(
-      client,
-    ).resolve(refs, location: location);
+    final curricula = await _resolveBySource(
+      GoalService(client),
+      refs,
+      location,
+    );
     return (refs: refs, curricula: curricula, error: null);
   } on SmartschoolGoalError catch (error) {
     log('goals: $error');
     return (refs: refs, curricula: const <Curriculum>[], error: error);
   }
+}
+
+/// Names [refs] with [goals] (`GoalService.resolve`): the goals of the GO!
+/// Navigator (type [goNavigatorType]) at
+/// [GoalLocation.lessonContentNavigator], the only location that names them
+/// (seen live on 2026-11-23: the others answer `[]` for them), and the
+/// others at [location]; one request per source that has goals, the
+/// curricula of both answers together. A planned lesson's GO! goals are
+/// named at the Lesfiches module's navigator location too: whether the
+/// planner has one of its own was not checked.
+Future<List<Curriculum>> _resolveBySource(
+  GoalService goals,
+  List<LearningGoalRef> refs,
+  GoalLocation location,
+) async {
+  if (location == GoalLocation.lessonContentNavigator) {
+    return goals.resolve(refs, location: location);
+  }
+  final navigator = [
+    for (final ref in refs)
+      if (ref.type == goNavigatorType) ref,
+  ];
+  final others = [
+    for (final ref in refs)
+      if (ref.type != goNavigatorType) ref,
+  ];
+  return [
+    if (others.isNotEmpty) ...await goals.resolve(others, location: location),
+    if (navigator.isNotEmpty)
+      ...await goals.resolve(
+        navigator,
+        location: GoalLocation.lessonContentNavigator,
+      ),
+  ];
 }
 
 /// [goals] as the lines of a detail: `Goals: none`, or `Goals:` with one
@@ -355,7 +482,8 @@ Schema goalsSchema({required String description}) => Schema.list(
       'type': Schema.string(
         description:
             'The type of its curriculum, as read_curriculum shows it in its '
-            'header, like eindtermen-derde-graad-doorstroom or miniDB.',
+            'header, like eindtermen-derde-graad-doorstroom, miniDB or '
+            '$goNavigatorType.',
         minLength: 1,
       ),
     },
@@ -439,7 +567,9 @@ bool sameGoals(Iterable<LearningGoalRef> a, Iterable<LearningGoalRef> b) {
     (goal.id.toLowerCase(), goal.leerplanId.toLowerCase(), goal.type);
 
 /// Checks with the goal selector (`GoalService.resolve` at [location], one
-/// request) that [goals] are goals it knows, before a goal write sends them:
+/// request; goals of the GO! Navigator at its own location, a second one,
+/// [_resolveBySource]) that [goals] are goals it knows, before a goal write
+/// sends them:
 /// the lesfiche modules and the planner store any id without complaint, so
 /// a made-up id would be stored. Goals the item already stores ([stored])
 /// are kept without the check: they may be of a source the selector does
@@ -466,7 +596,7 @@ Future<List<Curriculum>> checkGoals(
   if (asked.isEmpty) return const [];
   final List<Curriculum> curricula;
   try {
-    curricula = await GoalService(client).resolve(asked, location: location);
+    curricula = await _resolveBySource(GoalService(client), asked, location);
   } on SmartschoolGoalError catch (error) {
     final toolError = goalToolError(error)!;
     throw ToolError(
@@ -508,8 +638,10 @@ Future<List<Curriculum>> checkGoals(
           'not known to the goal selector as given, so ${problems.length == 1 ? 'it' : 'they'} would be '
           'stored as a goal without a name. $nothingSent',
       ...problems,
-      'Find the goal with list_curricula and read_curriculum, and pass its '
-          'id with the leerplanId and type of the curriculum\'s header.',
+      'Find the goal with list_curricula and read_curriculum (with source '
+          '$goNavigatorSource for a curriculum of the GO! Navigator), and '
+          'pass its id with the leerplanId and type of the curriculum\'s '
+          'header.',
     ].join('\n'),
   );
 }

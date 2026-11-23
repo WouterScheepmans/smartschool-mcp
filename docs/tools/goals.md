@@ -5,7 +5,9 @@
 The learning goals of Smartschool's goal selector, the dialog in which the
 Lesfiches module and the planner let you pick the goals of a lesfiche or a
 lesson: the eindtermen, the curricula of the philosophies of life and your
-school's own mini-databases. For everyone, without a switch. Read only:
+school's own mini-databases, and, for GO! schools, the curricula of the GO!
+(the "GO! Navigator" tab of the dialog; see [GO! Navigator](#go-navigator)).
+For everyone, without a switch. Read only:
 nothing here changes Smartschool. [`read_lesfiche`](lesfiches.md#read_lesfiche)
 and [`read_planned_element`](planner.md#read_planned_element) show the goals
 a lesfiche or a lesson has; [`create_lesfiche`](lesfiches.md#create_lesfiche),
@@ -33,6 +35,12 @@ own). One line each: its title, whether it is hidden in the selector or a
 favourite, and its id. `query` keeps the curricula whose title holds all its
 words.
 
+With `source` `go_navigator` it lists the curricula of the GO! Navigator
+instead: one group, `Navigator`, and on each line the curriculum's grade
+(`Derde graad`) after its title, since a title such as `Wiskunde` occurs in
+more than one grade. `query` matches the grade too ("wiskunde derde
+graad").
+
 ### `read_curriculum`
 
 Reads the goals of one curriculum, by its id from `list_curricula`: the
@@ -42,6 +50,38 @@ an extension goal or deprecated. The answer says once which `leerplanId` and
 `type` every goal of the curriculum is stored with. `query` keeps the goals
 that hold all its words in their number, text or headings, to find the goal
 that fits a lesson. At most 200 goals, with a note to narrow them.
+
+With `source` `go_navigator` it reads a curriculum of the GO! Navigator, by
+its id from `list_curricula` with the same source; without it, such an id is
+"no curriculum", with a hint to pass the source. The answer has the same
+shape, with `type` `go-navigator`. A GO! goal (`normaal-doel`) can have
+subgoals (`subgoal-global`, `subgoal-platform`) and contents (`mia`) under
+it, which can be picked too: they are listed under their goal, noted
+`(subgoal)` or `(kind mia)`; `basisgeletterdheid` and `uitbreiding` are noted
+as basic literacy and extension goal.
+
+## GO! Navigator
+
+The goal dialog of a lesfiche has a second tab, "GO! Navigator", with the
+curricula of the GO!. It is the same selector app, opened at another
+location: `lesson-content-navigator` instead of `lesson-content` (seen live
+on 2026-11-23), with the same three routes and answers of the same shapes
+(the library's `GoalLocation.lessonContentNavigator`). A lesfiche stores a
+GO! goal as any other, `{id, leerplanId, type}` with `type` `go-navigator`,
+through the same `change-goals` request; only the navigator location names
+it (the others answer `[]` for it).
+
+So the tools send each goal to the location of its source
+(`_resolveBySource` in `lib/src/goals/goals.dart`): the reads of a lesfiche,
+a lesson or a year plan name the GO! goals at the navigator location and the
+others at their own, one request per source that has goals; the goal writes
+check the new GO! goals there in the same way. A planned lesson's GO! goals
+are named and checked at the Lesfiches module's navigator location too:
+whether the planner has one of its own was not checked.
+
+The tests (`test/goal_tools_test.dart`, `test/goal_write_tools_test.dart`)
+use a GO! curriculum of the fake selector (`fakeNavId`), which serves it at
+`lesson-content-navigator` only, as live.
 
 ## How it works
 

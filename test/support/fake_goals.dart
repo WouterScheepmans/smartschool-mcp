@@ -21,6 +21,16 @@ const fakeMiniSubtitleId = 'f0000000-0000-4000-8000-000000000021';
 const fakeMiniGoal1Id = 'f0000000-0000-4000-8000-000000000022';
 const fakeMiniGoal2Id = 'f0000000-0000-4000-8000-000000000023';
 
+/// The ids of the sample's curriculum of the GO! Navigator.
+const fakeNavId = 'e0000000-0000-4000-8000-000000000004';
+const fakeNavTitleId = 'f0000000-0000-4000-8000-000000000030';
+const fakeNavGoalId = 'f0000000-0000-4000-8000-000000000031';
+const fakeNavSubgoalId = 'f0000000-0000-4000-8000-000000000032';
+const fakeNavMiaId = 'f0000000-0000-4000-8000-000000000033';
+
+/// The `leerplanType` (and stored `type`) of a goal of the GO! Navigator.
+const fakeNavType = 'go-navigator';
+
 /// The `leerplanType` of the sample's eindtermen.
 const fakeEindtermenType = 'eindtermen-derde-graad-doorstroom';
 
@@ -86,12 +96,22 @@ class FakeCurriculum {
     this.visible = true,
     this.favourite = false,
     this.children = const [],
+    this.navigator = false,
+    this.grade,
   });
 
   final String id;
 
   /// The name of its group in the list, such as `Overheid SO`.
   final String group;
+
+  /// Whether it is a curriculum of the GO! Navigator: served at the location
+  /// `lesson-content-navigator` only, and the others not there.
+  final bool navigator;
+
+  /// Its `metadata.group` in the list, such as `Derde graad`, as the GO!
+  /// Navigator has it.
+  final String? grade;
   final String title;
   final String leerplanType;
   final List<String> selectable;
@@ -102,7 +122,12 @@ class FakeCurriculum {
   Map<String, Object?> listJson() => {
     'id': id,
     'title': title,
-    'metadata': {'icon': null, 'isVisible': visible, 'isFavourite': favourite},
+    'metadata': {
+      'icon': null,
+      'isVisible': visible,
+      'isFavourite': favourite,
+      'group': ?grade,
+    },
   };
 
   /// The tree, whole, or pruned to the goals [keep].
@@ -121,7 +146,10 @@ class FakeCurriculum {
 
 /// Smartschool's goal selector (`/goal/selector/api/v1/`, dartschool#222),
 /// for logged-in requests. It serves, for either location
-/// (`lesson-content`, `planner-lesson-content`) and any day:
+/// (`lesson-content`, `planner-lesson-content`) and any day, the curricula
+/// that are not [FakeCurriculum.navigator], and at `lesson-content-navigator`
+/// only those that are (as live, 2026-11-23: the other locations do not
+/// name a goal of the GO! Navigator):
 /// - `GET leerplannen/{location}/list/{date}`: the [curricula] in groups, in
 ///   the order added;
 /// - `GET leerplannen/{location}/{id}/{date}`: one curriculum as a tree;
@@ -146,7 +174,9 @@ class FakeGoalSelector {
   /// deprecated), a goal of basic literacy and a cluster with a goal; a
   /// curriculum of the philosophies of life without goals; and a
   /// mini-database of the school, hidden and a favourite, with a heading, a
-  /// subheading and two goals.
+  /// subheading and two goals; and a curriculum of the GO! Navigator (third
+  /// grade) with a heading, a goal (`normaal-doel`) with a subgoal
+  /// (`subgoal-global`) and a content (`mia`) under it.
   void loadSample() {
     curricula.addAll(const [
       FakeCurriculum(
@@ -240,6 +270,50 @@ class FakeGoalSelector {
           ),
         ],
       ),
+      FakeCurriculum(
+        id: fakeNavId,
+        group: 'Navigator',
+        grade: 'Derde graad',
+        navigator: true,
+        title: 'Wiskunde, voorbeeld',
+        leerplanType: fakeNavType,
+        selectable: [
+          'normaal-doel',
+          'mia',
+          'basisgeletterdheid',
+          'uitbreiding',
+          'subgoal-global',
+          'subgoal-platform',
+        ],
+        children: [
+          FakeGoalNode(
+            id: fakeNavTitleId,
+            type: 'title',
+            title: '06.04 Wiskunde voorbeeld',
+            children: [
+              FakeGoalNode(
+                id: fakeNavGoalId,
+                type: 'normaal-doel',
+                title: 'De leerlingen bepalen limieten van functies.',
+                prefix: 'WD3_06.04.01',
+                children: [
+                  FakeGoalNode(
+                    id: fakeNavSubgoalId,
+                    type: 'subgoal-global',
+                    title: 'De leerlingen berekenen een limiet.',
+                    prefix: 'WD3_06.04.01.01',
+                  ),
+                  FakeGoalNode(
+                    id: fakeNavMiaId,
+                    type: 'mia',
+                    title: 'limieten van rationale functies',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
     ]);
   }
 
@@ -256,6 +330,11 @@ class FakeGoalSelector {
     ));
     if (failWith case final status?) return _json('{}', status: status);
     final route = path.substring(fakeGoalApi.length + 1).split('/');
+    final navigator = route.first == 'lesson-content-navigator';
+    final curricula = [
+      for (final curriculum in this.curricula)
+        if (curriculum.navigator == navigator) curriculum,
+    ];
     if (options.method == 'GET' && route.length == 3 && route[1] == 'list') {
       final groups = <String, List<Object?>>{};
       for (final curriculum in curricula) {

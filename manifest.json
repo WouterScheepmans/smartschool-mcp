@@ -298,11 +298,11 @@
     },
     {
       "name": "list_curricula",
-      "description": "Toont de leerplannen van de doelenselector (de eindtermen, de leerplannen levensbeschouwing en de minidatabanken van je school), in hun groepen."
+      "description": "Toont de leerplannen van de doelenselector (de eindtermen, de leerplannen levensbeschouwing de minidatabanken van je school en, voor GO!-scholen, de leerplannen van de GO! Navigator), in hun groepen."
     },
     {
       "name": "read_curriculum",
-      "description": "Toont de leerdoelen van één leerplan onder hun titels, met hun nummer, en zoekt een doel op woorden."
+      "description": "Toont de leerdoelen van één leerplan onder hun titels, met hun nummer (ook een leerplan van de GO! Navigator), en zoekt een doel op woorden."
     },
     {
       "name": "list_skore_gradebooks",

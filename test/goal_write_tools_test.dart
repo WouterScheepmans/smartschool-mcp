@@ -251,7 +251,8 @@ void main() {
           'stored as a goal without a name. Nothing was sent.\n'
           '- id ${goal['id']}, leerplanId ${goal['leerplanId']}, type '
           '${goal['type']}: $why\n'
-          'Find the goal with list_curricula and read_curriculum, and pass '
+          'Find the goal with list_curricula and read_curriculum (with source '
+          'go_navigator for a curriculum of the GO! Navigator), and pass '
           'its id with the leerplanId and type of the curriculum\'s header.',
         );
       }
@@ -376,6 +377,106 @@ void main() {
       );
       expect(posts(), isEmpty);
       expect(lesficheNow(_lesfiche.id).name, 'Algoritmen');
+    });
+  });
+
+  group('goals of the GO! Navigator', () {
+    final navGoal = fakeGoalRef(fakeNavGoalId, fakeNavId, fakeNavType);
+    const navGoalLine =
+        '- Wiskunde, voorbeeld: 06.04 Wiskunde voorbeeld > WD3_06.04.01 De '
+        'leerlingen bepalen limieten van functies. | id $fakeNavGoalId, '
+        'leerplanId $fakeNavId, type go-navigator';
+
+    /// The path of each POST the selector was asked, as its location.
+    List<String> selectorLocations() => [
+      for (final request in selector.requests)
+        if (request.method == 'POST')
+          request.path.split('/').reversed.elementAt(1),
+    ];
+
+    test('edit_lesfiche adds a GO! goal: checked and named at the navigator '
+        'location, stored with type go-navigator', () async {
+      await openSession();
+      final text = await ok('edit_lesfiche', {
+        'lesfiche': _lesfiche.id,
+        'goals': [_goal1, _llinkid, navGoal],
+      });
+      expect(text, startsWith('Changed the goals of the lesson lesfiche'));
+      expect(
+        text,
+        contains('Goals:\n$_goal1Line\n$_llinkidLine\n$navGoalLine\n'),
+      );
+      expect(lesficheNow(_lesfiche.id).goals, [_goal1, _llinkid, navGoal]);
+      final sent = planner.requests.singleWhere(
+        (request) => request.path == _lesficheGoalsPath,
+      );
+      expect((sent.data! as Map)['newGoals'], [
+        {..._goal1, 'goalId': fakeGoal1Id},
+        {..._llinkid, 'goalId': _llinkidGoalId},
+        {...navGoal, 'goalId': fakeNavGoalId},
+      ]);
+      // The check asks the navigator for the new goal only; the read back
+      // names the others at the Lesfiches module's location and the GO! goal
+      // at the navigator's.
+      expect(selectorAsked(), [
+        [fakeNavGoalId],
+        [fakeGoal1Id, _llinkidGoalId],
+        [fakeNavGoalId],
+      ]);
+      expect(selectorLocations(), [
+        'lesson-content-navigator',
+        'lesson-content',
+        'lesson-content-navigator',
+      ]);
+    });
+
+    test('create_lesfiche takes a GO! goal and a goal of the eindtermen '
+        'together', () async {
+      await openSession();
+      final text = await ok('create_lesfiche', {
+        'name': 'Limieten',
+        'goals': [navGoal, _goal1],
+      });
+      expect(text, contains(navGoalLine));
+      expect(text, contains(_goal1Line));
+    });
+
+    test('refuses a made-up GO! goal before anything is sent', () async {
+      await openSession();
+      final madeUp = fakeGoalRef(_madeUpGoalId, fakeNavId, fakeNavType);
+      final text = await error('edit_lesfiche', {
+        'lesfiche': _lesfiche.id,
+        'goals': [_goal1, madeUp],
+      });
+      expect(
+        text,
+        startsWith(
+          'A goal is not known to the goal selector as given, so it would be '
+          'stored as a goal without a name. Nothing was sent.\n'
+          '- id $_madeUpGoalId, leerplanId $fakeNavId, type go-navigator: its '
+          'curriculum has no goal with that id that can be picked',
+        ),
+      );
+      expect(text, contains('with source go_navigator'));
+      expect(posts(), isEmpty);
+    });
+
+    test('refuses a GO! goal given with another type', () async {
+      await openSession();
+      final text = await error('edit_lesfiche', {
+        'lesfiche': _lesfiche.id,
+        'goals': [fakeGoalRef(fakeNavGoalId, fakeNavId, fakeEindtermenType)],
+      });
+      // Not of type go-navigator, so it is checked at the Lesfiches module's
+      // location, which does not have the GO! curricula.
+      expect(
+        text,
+        contains(
+          '- id $fakeNavGoalId, leerplanId $fakeNavId, type '
+          '$fakeEindtermenType: the goal selector has no such goal',
+        ),
+      );
+      expect(posts(), isEmpty);
     });
   });
 

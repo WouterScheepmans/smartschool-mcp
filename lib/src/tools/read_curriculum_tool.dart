@@ -7,7 +7,8 @@ import 'server_tool.dart';
 /// `read_curriculum`: the learning goals of one curriculum of Smartschool's
 /// goal selector (`GoalService.getCurriculum`, dartschool#222), under their
 /// headings, optionally only those that hold some words, as
-/// [formatCurriculum] shows them (#186).
+/// [formatCurriculum] shows them (#186); with `source` `go_navigator`, a
+/// curriculum of the GO! Navigator ([goalSource]).
 ServerTool readCurriculumTool(SmartschoolSession session) => ServerTool(
   definition: Tool(
     name: 'read_curriculum',
@@ -19,7 +20,11 @@ ServerTool readCurriculumTool(SmartschoolSession session) => ServerTool(
         'its number (such as 01.02), its text and its id, and whether it is '
         'a goal of basic literacy, an extension goal or deprecated. A goal '
         'is stored with three fields: its own id, and the leerplanId and '
-        'type the answer gives once for the whole curriculum. Filter with '
+        'type the answer gives once for the whole curriculum (type '
+        'go-navigator for the GO! Navigator, whose goals can have subgoals '
+        'under them, each of which can be picked too). For a curriculum '
+        'that list_curricula listed with source go_navigator, pass source '
+        'go_navigator here as well. Filter with '
         'query (words in the number, the text or the headings above the '
         'goal) to find the goal that fits a lesson; at most '
         '$maxGoalLines goals are listed. Reading changes nothing in '
@@ -38,6 +43,7 @@ ServerTool readCurriculumTool(SmartschoolSession session) => ServerTool(
               'headings, case-insensitive, in any order, like "programmeren '
               'algoritme". Default: every goal.',
         ),
+        'source': goalSourceSchema(),
       },
       required: ['curriculum'],
     ),
@@ -58,9 +64,10 @@ ServerTool readCurriculumTool(SmartschoolSession session) => ServerTool(
       );
     }
     final query = (arguments['query'] as String? ?? '').trim();
+    final location = goalSource(arguments['source']);
     final curriculum = await withGoals(
       session,
-      (goals) => goals.getCurriculum(id),
+      (goals) => goals.getCurriculum(id, location: location),
     );
     return CallToolResult(
       content: [TextContent(text: formatCurriculum(curriculum, query))],

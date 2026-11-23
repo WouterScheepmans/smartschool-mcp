@@ -281,13 +281,15 @@ void main() {
       expect(
         await error('read_curriculum', {'curriculum': id}),
         'The goal selector has no curriculum with id $id. Take the id from '
-        'list_curricula.',
+        'list_curricula, and pass read_curriculum the same source '
+        '(go_navigator for a curriculum of the GO! Navigator).',
       );
       selector.requests.clear();
       expect(
         await error('read_curriculum', {'curriculum': '../list'}),
         'The goal selector has no curriculum with id ../list. Take the id '
-        'from list_curricula.',
+        'from list_curricula, and pass read_curriculum the same source '
+        '(go_navigator for a curriculum of the GO! Navigator).',
       );
       expect(selectorRequests(), isEmpty, reason: 'nothing is sent');
       expect(
@@ -379,6 +381,149 @@ void main() {
         isNot(contains('Goals')),
       );
       expect(selector.requests, isEmpty);
+    });
+  });
+
+  group('GO! Navigator', () {
+    final navGoal = fakeGoalRef(fakeNavGoalId, fakeNavId, fakeNavType);
+    final navSubgoal = fakeGoalRef(fakeNavSubgoalId, fakeNavId, fakeNavType);
+
+    test('list_curricula with source go_navigator lists the GO! curricula '
+        'with their grade, from the navigator location', () async {
+      expect(
+        await ok('list_curricula', {'source': 'go_navigator'}),
+        'The 1 curricula of the GO! Navigator, in its groups:\n'
+        'Navigator:\n'
+        '- Wiskunde, voorbeeld | Derde graad | id $fakeNavId\n'
+        'read_curriculum reads the goals of one, by its id, with source '
+        'go_navigator.',
+      );
+      expect(selectorRequests(), [
+        matches(
+          RegExp(r'^GET .*/lesson-content-navigator/list/\d{4}-\d\d-\d\d$'),
+        ),
+      ]);
+    });
+
+    test('list_curricula finds a GO! curriculum by its grade', () async {
+      expect(
+        await ok('list_curricula', {
+          'source': 'go_navigator',
+          'query': 'wiskunde derde graad',
+        }),
+        contains('- Wiskunde, voorbeeld | Derde graad | id $fakeNavId'),
+      );
+      expect(
+        await ok('list_curricula', {
+          'source': 'go_navigator',
+          'query': 'wiskunde tweede graad',
+        }),
+        'No curriculum whose title holds "wiskunde tweede graad" (of the 1 '
+        'curricula of the GO! Navigator).',
+      );
+    });
+
+    test('the default source does not list the GO! curricula', () async {
+      expect(
+        await ok('list_curricula', {}),
+        isNot(contains('Wiskunde, voorbeeld')),
+      );
+    });
+
+    test('read_curriculum with source go_navigator lists the goals, their '
+        'subgoals and contents, with type go-navigator', () async {
+      expect(
+        await ok('read_curriculum', {
+          'curriculum': fakeNavId,
+          'source': 'go_navigator',
+        }),
+        'Curriculum "Wiskunde, voorbeeld" | id $fakeNavId\n'
+        'Each goal of it is stored with its own id, leerplanId $fakeNavId '
+        'and type go-navigator.\n'
+        'Its 3 goals, under their headings:\n'
+        '06.04 Wiskunde voorbeeld\n'
+        '  - WD3_06.04.01 De leerlingen bepalen limieten van functies. | id '
+        '$fakeNavGoalId\n'
+        '    - WD3_06.04.01.01 De leerlingen berekenen een limiet. '
+        '(subgoal) | id $fakeNavSubgoalId\n'
+        '    - limieten van rationale functies (kind mia) | id '
+        '$fakeNavMiaId',
+      );
+      expect(selectorRequests(), [
+        matches(
+          RegExp(
+            '^GET .*/lesson-content-navigator/$fakeNavId/'
+            r'\d{4}-\d\d-\d\d$',
+          ),
+        ),
+      ]);
+    });
+
+    test('read_curriculum without the source does not find a GO! '
+        'curriculum, and says to pass it', () async {
+      expect(
+        await error('read_curriculum', {'curriculum': fakeNavId}),
+        contains('go_navigator for a curriculum of the GO! Navigator'),
+      );
+    });
+
+    test('read_lesfiche names GO! goals at the navigator location and the '
+        'others at the Lesfiches module\'s', () async {
+      server.planner.lesfiches.add(
+        FakeLesfiche(
+          id: 'b0000000-0000-4000-8000-000000000043',
+          name: 'Limieten',
+          goals: [_goal1, navGoal, navSubgoal],
+        ),
+      );
+      final text = await ok('read_lesfiche', {
+        'lesfiche': 'b0000000-0000-4000-8000-000000000043',
+      });
+      expect(
+        text,
+        contains(
+          'Goals:\n'
+          '- Eindtermen derde graad, voorbeeld: Competenties voorbeeld > '
+          '01.01 De leerlingen passen een algoritme toe & meer. | id '
+          '$fakeGoal1Id, leerplanId $fakeEindtermenId, type '
+          '$fakeEindtermenType\n'
+          '- Wiskunde, voorbeeld: 06.04 Wiskunde voorbeeld > WD3_06.04.01 De '
+          'leerlingen bepalen limieten van functies. | id $fakeNavGoalId, '
+          'leerplanId $fakeNavId, type go-navigator\n'
+          '- Wiskunde, voorbeeld: 06.04 Wiskunde voorbeeld > WD3_06.04.01 De '
+          'leerlingen bepalen limieten van functies. > WD3_06.04.01.01 De '
+          'leerlingen berekenen een limiet. (subgoal) | id '
+          '$fakeNavSubgoalId, leerplanId $fakeNavId, type go-navigator\n',
+        ),
+      );
+      expect(selectorRequests(), [
+        matches(RegExp(r'^POST .*/lesson-content/\d{4}-\d\d-\d\d$')),
+        matches(RegExp(r'^POST .*/lesson-content-navigator/\d{4}-\d\d-\d\d$')),
+      ]);
+      expect(selector.requests.last.data, {
+        'selection': [
+          for (final goal in [navGoal, navSubgoal])
+            {...goal, 'goalId': goal['id']},
+        ],
+        'isView': true,
+      });
+    });
+
+    test('a lesfiche with only GO! goals asks only the navigator '
+        'location', () async {
+      server.planner.lesfiches.add(
+        FakeLesfiche(
+          id: 'b0000000-0000-4000-8000-000000000044',
+          name: 'Alleen GO!',
+          goals: [navGoal],
+        ),
+      );
+      await ok('read_lesfiche', {
+        'lesfiche': 'b0000000-0000-4000-8000-000000000044',
+      });
+      expect(selectorRequests(), [
+        matches(RegExp(r'^POST .*/lesson-content-navigator/\d{4}-\d\d-\d\d$')),
+      ]);
     });
   });
 }

@@ -172,10 +172,9 @@ packages:
   flutter_smartschool:
     dependency: "direct main"
     description:
-      name: flutter_smartschool
-      sha256: "6913216b8d2e76161faa0c2d3df17822452dba1456d0457d8fe54ed525f78532"
-      url: "https://pub.dev"
-    source: hosted
+      path: "../dartschool"
+      relative: true
+    source: path
     version: "0.4.6"
   frontend_server_client:
     dependency: transitive

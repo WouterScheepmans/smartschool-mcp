@@ -626,12 +626,14 @@ void main() {
     // The learning goals (#186): a curriculum by its id.
     final curriculaSchema = tools['list_curricula']!['inputSchema'] as Map;
     expect(curriculaSchema['required'], isNull);
-    expect((curriculaSchema['properties'] as Map).keys, ['query']);
+    // With the curricula of the GO! Navigator as a second source.
+    expect((curriculaSchema['properties'] as Map).keys, ['query', 'source']);
     final curriculumSchema = tools['read_curriculum']!['inputSchema'] as Map;
     expect(curriculumSchema['required'], ['curriculum']);
     expect((curriculumSchema['properties'] as Map).keys, [
       'curriculum',
       'query',
+      'source',
     ]);
     final planLesficheSchema = tools['plan_lesfiche']!['inputSchema'] as Map;
     // Several hours in one call, and a lesson only replaced on request
